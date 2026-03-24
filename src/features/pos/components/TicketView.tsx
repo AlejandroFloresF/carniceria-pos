@@ -52,7 +52,7 @@ export function TicketView({ ticket, onNewSale }: Props) {
             <span>Total</span><span>${ticket.total.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-xs text-gray-500 pt-1">
-            <span>Pago ({METHOD_LABELS[ticket.paymentMethod]})</span>
+            <span>Pago ({METHOD_LABELS[ticket.paymentMethod as keyof typeof METHOD_LABELS]})</span>
             <span>${ticket.cashReceived.toFixed(2)}</span>
           </div>
           {ticket.paymentMethod === 'Cash' && change > 0 && (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useCustomers } from '../pos/hooks/useCustomers'
-import { useCreateCustomer, useUpdateCustomer } from '../pos/hooks/useCreateCustomer'
+import { useCreateCustomer, useDeleteCustomer, useUpdateCustomer } from '../pos/hooks/useCreateCustomer'
 import { useCustomerDetail, useMarkDebtPaid, useSetCustomerPrice, useDeleteCustomerPrice } from '../pos/hooks/useCustomerDebts'
 import { useProducts } from '../pos/hooks/useProducts'
 import type { Customer } from '../pos/types/pos.types'
@@ -91,7 +91,6 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
   const setPrice    = useSetCustomerPrice()
   const deletePrice = useDeleteCustomerPrice()
   const { data: products = [] } = useProducts('')
-
   const [tab, setTab]             = useState<'debts'|'prices'>('debts')
   const [editPrice, setEditPrice] = useState<{ productId: string; value: string }|null>(null)
 
@@ -329,10 +328,11 @@ export function CustomersPage() {
   const [detailCustomer, setDetailCustomer] = useState<Customer | null>(null)
   const [form, setForm]                     = useState<CustomerForm>(EMPTY_FORM)
   const [phoneError, setPhoneError]         = useState('')
-
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null)
   const { data: customers = [], isLoading } = useCustomers(search)
   const createCustomer = useCreateCustomer()
   const updateCustomer = useUpdateCustomer()
+  const deleteCustomer = useDeleteCustomer() 
 
   function openCreate() {
     setEditing(null); setForm(EMPTY_FORM); setPhoneError(''); setModal('form')
@@ -498,6 +498,20 @@ export function CustomersPage() {
                             </svg>
                             Editar
                           </button>
+                          {c.name !== "Público General" && (
+                            <button
+                              onClick={() => setDeletingCustomer(c)}
+                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500
+                                         border border-gray-200 hover:border-red-200 px-2.5 py-1 rounded-md
+                                         transition-all hover:bg-red-50">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" strokeWidth="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                              </svg>
+                              Eliminar
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -701,6 +715,73 @@ export function CustomersPage() {
           onClose={() => { setModal(null); setDetailCustomer(null) }}
         />
       )}
+      {deletingCustomer && (
+  <div className="modal-overlay">
+    <div className="modal" style={{ maxWidth: '400px' }}>
+      <div className="modal-header">
+        <span className="modal-title">Eliminar cliente</span>
+        <button
+          onClick={() => setDeletingCustomer(null)}
+          className="text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+      <div className="modal-body">
+
+        {/* Preview del cliente */}
+        <div className="flex items-center gap-3 p-3 rounded-xl border"
+          style={{
+            backgroundColor: `${deletingCustomer.color ?? '#6366f1'}08`,
+            borderColor: `${deletingCustomer.color ?? '#6366f1'}25`,
+          }}>
+          <CustomerAvatar customer={deletingCustomer} size="md" />
+          <div>
+            <p className="font-medium text-gray-900">{deletingCustomer.name}</p>
+            {deletingCustomer.phone && (
+              <p className="text-xs text-gray-500">{deletingCustomer.phone}</p>
+            )}
+          </div>
+        </div>
+
+              {/* Advertencia si tiene deuda */}
+              {deletingCustomer.totalDebt > 0 && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200
+                                rounded-lg px-3 py-2.5">
+                  <span className="text-amber-500 shrink-0">⚠</span>
+                  <p className="text-xs text-amber-700">
+                    Este cliente tiene una deuda pendiente de{' '}
+                    <span className="font-medium">${deletingCustomer.totalDebt.toFixed(2)}</span>.
+                    Al eliminarlo la deuda quedará sin asignar.
+                  </p>
+                </div>
+              )}
+
+              <p className="text-sm text-gray-600">
+                ¿Estás seguro que deseas eliminar a{' '}
+                <span className="font-medium">{deletingCustomer.name}</span>?
+                Esta acción no se puede deshacer.
+              </p>
+
+              <button
+                className="w-full py-3 px-4 text-white font-medium text-sm rounded-lg
+                          bg-red-600 hover:bg-red-700 disabled:opacity-40 transition-colors"
+                disabled={deleteCustomer.isPending}
+                onClick={async () => {
+                  await deleteCustomer.mutateAsync(deletingCustomer.id)
+                  setDeletingCustomer(null)
+                  // Si el cliente eliminado era el seleccionado en el POS, resetea
+                }}>
+                {deleteCustomer.isPending ? 'Eliminando...' : 'Sí, eliminar cliente'}
+              </button>
+
+              <button
+                className="btn-secondary"
+                onClick={() => setDeletingCustomer(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    
   )
 }

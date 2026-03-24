@@ -19,3 +19,13 @@ export function useUpdateCustomer() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
   })
 }
+
+export function useDeleteCustomer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/customers/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] })
+    },
+  })
+}

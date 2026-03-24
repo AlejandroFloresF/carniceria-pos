@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { usePosStore } from '@/store/posStore'
 import { useDashboard } from '../pos/hooks/useDashboard'
 import { api } from '@/lib/api'
+import * as XLSX from 'xlsx'
 
 type RangePreset = 'today' | 'week' | 'month' | 'custom'
 
@@ -92,30 +93,23 @@ export function ReportsPage() {
     refetchOnWindowFocus: false,
   })
 
-  // ── Exportar CSV ──────────────────────────────────────────────────────────
-  function exportCSV() {
+  // ── Exportar Excel ──────────────────────────────────────────────────────────
+  function exportExcel() {
     setExporting(true)
-    const headers = ['Folio', 'Fecha', 'Cliente', 'Cajero', 'Método', 'Descuento', 'Total']
-    const rows    = sales.map(s => [
-    `#${s.folio}`,
-    new Date(s.createdAt).toLocaleString('es-MX'),
-    s.customerName,
-    s.cashierName,  
-    METHOD_LABELS[s.paymentMethod] ?? s.paymentMethod,
-    `$${s.discountAmount.toFixed(2)}`,
-    `$${s.total.toFixed(2)}`,
-    ])
+    const data = sales.map(s => ({
+      Folio: `#${s.folio}`,
+      Fecha: new Date(s.createdAt).toLocaleString('es-MX'),
+      Cliente: s.customerName,
+      Cajero: s.cashierName,
+      Método: METHOD_LABELS[s.paymentMethod] ?? s.paymentMethod,
+      Descuento: s.discountAmount,
+      Total: s.total,
+    }))
 
-    const csv  = [headers, ...rows]
-      .map(r => r.map(v => `"${v}"`).join(','))
-      .join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    a.href     = url
-    a.download = `ventas_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Ventas')
+    XLSX.writeFile(wb, `ventas_${new Date().toISOString().split('T')[0]}.xlsx`)
     setExporting(false)
   }
 
@@ -140,7 +134,7 @@ export function ReportsPage() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={exportCSV}
+            onClick={exportExcel}
             disabled={exporting || sales.length === 0}
             className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white
                        hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg
@@ -151,20 +145,7 @@ export function ReportsPage() {
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            CSV
-          </button>
-          <button
-            onClick={() => window.print()}
-            disabled={sales.length === 0}
-            className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white
-                       hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg
-                       disabled:opacity-40 transition-colors">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-            PDF
+            Excel
           </button>
         </div>
       </div>
