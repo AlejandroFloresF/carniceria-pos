@@ -43,20 +43,28 @@ export function CloseSessionModal({ onClose }: Props) {
 
         <div className="modal-body">
           {summary && (
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: 'Ventas totales', value: `$${summary.totalSales.toFixed(2)}`, sub: `${summary.totalOrders} tickets` },
-                { label: 'Efectivo', value: `$${summary.totalCash.toFixed(2)}`, sub: '' },
-                { label: 'Tarjeta / transfer', value: `$${(summary.totalCard + summary.totalTransfer).toFixed(2)}`, sub: '' },
-                { label: 'Descuentos', value: `$${summary.totalDiscounts.toFixed(2)}`, sub: '' },
-              ].map(m => (
-                <div key={m.label} className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">{m.label}</p>
-                  <p className="text-lg font-medium text-gray-900">{m.value}</p>
-                  {m.sub && <p className="text-xs text-gray-400">{m.sub}</p>}
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Ventas totales',    value: `$${summary.totalSales.toFixed(2)}`,                        sub: `${summary.totalOrders} tickets` },
+                  { label: 'Efectivo en caja',  value: `$${summary.totalCash.toFixed(2)}`,                         sub: 'ventas + anticipos + cobros' },
+                  { label: 'Tarjeta / transf.', value: `$${(summary.totalCard + summary.totalTransfer).toFixed(2)}`, sub: '' },
+                  { label: 'Descuentos',        value: `$${summary.totalDiscounts.toFixed(2)}`,                    sub: '' },
+                ].map(m => (
+                  <div key={m.label} className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">{m.label}</p>
+                    <p className="text-lg font-medium text-gray-900">{m.value}</p>
+                    {m.sub && <p className="text-xs text-gray-400">{m.sub}</p>}
+                  </div>
+                ))}
+              </div>
+              {summary.totalDebtPayments > 0 && (
+                <div className="flex items-center justify-between text-sm bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
+                  <span className="text-purple-700">Cobros de deuda recibidos</span>
+                  <span className="font-medium text-purple-800">${summary.totalDebtPayments.toFixed(2)}</span>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
 
           <div>

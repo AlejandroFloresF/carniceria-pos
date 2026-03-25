@@ -8,17 +8,17 @@ export function useCreateOrder() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: { paymentMethod: PaymentMethod; cashReceived: number,
-      debtNote?:     string
-     }) =>
+    mutationFn: (payload: { paymentMethod: PaymentMethod; cashReceived: number; debtNote?: string; advancePayment?: number; advancePaymentMethod?: string }) =>
       api.post<TicketDto>('/orders', {
-        cashierSessionId: session!.id,
-        items: items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
+        cashierSessionId:     session!.id,
+        items:                items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
         discountPercent,
-        paymentMethod: payload.paymentMethod,
-        cashReceived: payload.cashReceived,
-        customerId: selectedCustomer?.id ?? undefined,
-        debtNote: payload.debtNote,
+        paymentMethod:        payload.paymentMethod,
+        cashReceived:         payload.cashReceived,
+        customerId:           selectedCustomer?.id ?? undefined,
+        debtNote:             payload.debtNote,
+        advancePayment:       payload.advancePayment ?? 0,
+        advancePaymentMethod: payload.advancePaymentMethod ?? null,
       }),
 
     onSuccess: () => {

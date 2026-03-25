@@ -66,18 +66,19 @@ export interface CashierSessionDto {
 }
 
 export interface SessionSummaryDto {
-  sessionId:      string
-  cashierName:    string
-  openedAt:       string
-  closedAt:       string | null
-  totalOrders:    number
-  totalSales:     number
-  totalCash:      number
-  totalCard:      number
-  totalTransfer:  number
-  totalDiscounts: number
-  openingCash:    number
-  expectedCash:   number
+  sessionId:         string
+  cashierName:       string
+  openedAt:          string
+  closedAt:          string | null
+  totalOrders:       number
+  totalSales:        number
+  totalCash:         number
+  totalCard:         number
+  totalTransfer:     number
+  totalDiscounts:    number
+  openingCash:       number
+  expectedCash:      number
+  totalDebtPayments: number
 }
 
 export interface Customer {

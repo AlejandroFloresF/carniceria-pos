@@ -1,8 +1,14 @@
 import { useState } from 'react'
 import { useStockStatus, useRegisterEntry, useRegisterWaste, useSetAlert, useMovements, useUpdateProductPrice } from './hooks/useInventory'
+import { useAllProducts, useCreateProduct, useUpdateProduct, useToggleProductActive, useDeleteProduct } from './hooks/useProductCrud'
 import type { StockStatusDto } from './types/inventory.types'
 
 type Modal = 'entry' | 'waste' | 'alert' | 'movements' | null
+type Tab   = 'stock' | 'products'
+
+const UNITS             = ['kg', 'piece']
+const UNIT_LABEL: Record<string, string> = { kg: 'Kilogramo (kg)', piece: 'Pieza' }
+const DEFAULT_CATEGORIES = ['Carne', 'Embutido', 'Preparado', 'Salsa', 'Otro']
 
 const SOURCES  = ['Ranch', 'Supplier', 'Adjustment']
 const REASONS  = ['Expired', 'ProcessLoss', 'Damaged', 'Other']
@@ -10,7 +16,7 @@ const SOURCE_LABELS: Record<string, string>  = { Ranch: 'Rancho', Supplier: 'Pro
 const REASON_LABELS: Record<string, string>  = { Expired: 'Vencido', ProcessLoss: 'Merma proceso', Damaged: 'Dañado', Other: 'Otro' }
 
 export function InventoryPage() {
-  const updatePrice = useUpdateProductPrice()
+  const updatePrice    = useUpdateProductPrice()
   const [wasteError, setWasteError] = useState('')
   const [entryError, setEntryError] = useState('')
   const [editingPrice, setEditingPrice] = useState<{ productId: string; value: string } | null>(null)
@@ -19,6 +25,69 @@ export function InventoryPage() {
   const [selected, setSelected]     = useState<StockStatusDto | null>(null)
   const [search, setSearch]         = useState('')
   const [filterAlert, setFilterAlert] = useState(false)
+
+  // ── Productos tab ───────────────────────────────────────
+  const [tab, setTab]               = useState<Tab>('stock')
+  const { data: allProducts = [] }  = useAllProducts()
+  const createProduct               = useCreateProduct()
+  const updateProduct               = useUpdateProduct()
+  const toggleActive                = useToggleProductActive()
+  const deleteProduct               = useDeleteProduct()
+  const [productSearch, setProductSearch]     = useState('')
+  const [showInactive, setShowInactive]       = useState(false)
+  const [productForm, setProductForm]         = useState({ name: '', category: 'Carne', price: '', unit: 'kg' })
+  const [editingProduct, setEditingProduct]   = useState<string | null>(null)
+  const [productError, setProductError]       = useState('')
+  const [confirmDelete, setConfirmDelete]     = useState<string | null>(null)
+  const [customCategory, setCustomCategory]   = useState('')
+
+  // Categorías únicas del catálogo + las predefinidas
+  const allCategories = Array.from(new Set([
+    ...DEFAULT_CATEGORIES,
+    ...allProducts.map(p => p.category).filter(Boolean),
+  ])).sort()
+
+  const filteredProducts = allProducts
+    .filter(p => showInactive ? true : p.isActive)
+    .filter(p => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()))
+    .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
+
+  async function submitProduct() {
+    setProductError('')
+    const price    = parseFloat(productForm.price)
+    const category = productForm.category === '__custom__' ? customCategory.trim() : productForm.category
+    if (!productForm.name.trim()) { setProductError('El nombre es requerido'); return }
+    if (!price || price <= 0)     { setProductError('Precio inválido'); return }
+    if (!category)                { setProductError('La categoría es requerida'); return }
+    try {
+      if (editingProduct) {
+        await updateProduct.mutateAsync({ id: editingProduct, name: productForm.name.trim(), category, price, unit: productForm.unit })
+      } else {
+        await createProduct.mutateAsync({ name: productForm.name.trim(), category, price, unit: productForm.unit })
+      }
+      setProductForm({ name: '', category: 'Carne', price: '', unit: 'kg' })
+      setEditingProduct(null)
+      setProductError('')
+      setCustomCategory('')
+    } catch (err: any) {
+      setProductError(err?.response?.data?.error ?? 'Error al guardar producto')
+    }
+  }
+
+  function startEdit(p: typeof allProducts[0]) {
+    setEditingProduct(p.id)
+    const isKnown = DEFAULT_CATEGORIES.includes(p.category)
+    setProductForm({ name: p.name, category: isKnown ? p.category : '__custom__', price: String(p.pricePerUnit), unit: p.unit })
+    setCustomCategory(isKnown ? '' : p.category)
+    setProductError('')
+  }
+
+  function cancelEdit() {
+    setEditingProduct(null)
+    setProductForm({ name: '', category: 'Carne', price: '', unit: 'kg' })
+    setProductError('')
+    setCustomCategory('')
+  }
 
   const registerEntry = useRegisterEntry()
   const registerWaste = useRegisterWaste()
@@ -124,10 +193,14 @@ export function InventoryPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-lg font-medium text-gray-900">Inventario</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Stock actual, entradas y merma</p>
+          <h1 className="text-lg font-medium text-gray-900">
+            {tab === 'stock' ? 'Inventario' : 'Productos'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {tab === 'stock' ? 'Stock actual, entradas y merma' : 'Gestión del catálogo de productos'}
+          </p>
         </div>
-        {alertCount > 0 && (
+        {tab === 'stock' && alertCount > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2 self-start">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             <span className="text-sm text-red-700 font-medium">
@@ -136,6 +209,219 @@ export function InventoryPage() {
           </div>
         )}
       </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-100 -mt-2">
+        {([
+          { id: 'stock',    label: 'Inventario' },
+          { id: 'products', label: `Productos (${allProducts.filter(p => p.isActive).length})` },
+        ] as { id: Tab; label: string }[]).map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className="px-5 py-2.5 text-sm transition-colors border-b-2"
+            style={tab === t.id
+              ? { color: '#6366f1', borderBottomColor: '#6366f1', fontWeight: 500 }
+              : { color: '#6b7280', borderBottomColor: 'transparent' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Pestaña Productos ─────────────────────────────── */}
+      {tab === 'products' && (
+        <div className="flex flex-col gap-5">
+
+          {/* Formulario agregar/editar */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h2 className="text-sm font-medium text-gray-700 mb-4">
+              {editingProduct ? 'Editar producto' : 'Agregar nuevo producto'}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Nombre *</label>
+                <input className="input-base" placeholder="Ej. Chorizo artesanal"
+                  value={productForm.name}
+                  onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Categoría</label>
+                <select className="input-base"
+                  value={productForm.category}
+                  onChange={e => {
+                    setProductForm(f => ({ ...f, category: e.target.value }))
+                    if (e.target.value !== '__custom__') setCustomCategory('')
+                  }}>
+                  {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option value="__custom__">Personalizar</option>
+                </select>
+                {productForm.category === '__custom__' && (
+                  <input className="input-base mt-2" placeholder="Escribe la nueva categoría"
+                    value={customCategory}
+                    onChange={e => setCustomCategory(e.target.value)} />
+                )}
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Precio de venta *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" step="0.01"
+                    value={productForm.price}
+                    onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Unidad</label>
+                <select className="input-base"
+                  value={productForm.unit}
+                  onChange={e => setProductForm(f => ({ ...f, unit: e.target.value }))}>
+                  {UNITS.map(u => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
+                </select>
+              </div>
+            </div>
+            {productError && (
+              <p className="text-xs text-red-600 mt-2">{productError}</p>
+            )}
+            <div className="flex gap-2 mt-4">
+              {editingProduct && (
+                <button onClick={cancelEdit} className="btn-secondary">Cancelar</button>
+              )}
+              <button
+                onClick={submitProduct}
+                disabled={createProduct.isPending || updateProduct.isPending}
+                className="px-4 py-2 text-sm text-white rounded-lg font-medium disabled:opacity-40 transition-colors"
+                style={{ backgroundColor: '#6366f1' }}>
+                {createProduct.isPending || updateProduct.isPending
+                  ? 'Guardando...'
+                  : editingProduct ? 'Guardar cambios' : '+ Agregar producto'}
+              </button>
+            </div>
+          </div>
+
+          {/* Filtros */}
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <input className="input-base flex-1" placeholder="Buscar producto..."
+              value={productSearch}
+              onChange={e => setProductSearch(e.target.value)} />
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer whitespace-nowrap">
+              <input type="checkbox" checked={showInactive}
+                onChange={e => setShowInactive(e.target.checked)} className="rounded" />
+              Mostrar inactivos
+            </label>
+          </div>
+
+          {/* Lista de productos */}
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Producto</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Categoría</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Precio</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500">Unidad</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500">Estado</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center text-sm text-gray-400 py-10">
+                      No hay productos
+                    </td>
+                  </tr>
+                ) : filteredProducts.map(p => (
+                  <tr key={p.id}
+                    className={`border-b border-gray-50 last:border-0 transition-colors ${!p.isActive ? 'opacity-50' : 'hover:bg-gray-50'}`}>
+                    <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
+                    <td className="px-4 py-3 text-gray-500">
+                      <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
+                        {p.category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900">
+                      ${p.pricePerUnit.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-center text-xs text-gray-500">
+                      {p.unit === 'kg' ? 'kg' : 'pieza'}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        p.isActive
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {p.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => startEdit(p)}
+                          className="text-xs border border-gray-200 hover:border-indigo-300 hover:text-indigo-600
+                                     px-2.5 py-1 rounded-lg transition-all hover:bg-indigo-50">
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => toggleActive.mutate(p.id)}
+                          disabled={toggleActive.isPending}
+                          className={`text-xs border px-2.5 py-1 rounded-lg transition-all disabled:opacity-40 ${
+                            p.isActive
+                              ? 'border-gray-200 hover:border-orange-200 hover:text-orange-600 hover:bg-orange-50'
+                              : 'border-gray-200 hover:border-green-300 hover:text-green-700 hover:bg-green-50'
+                          }`}>
+                          {p.isActive ? 'Desactivar' : 'Activar'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(p.id)}
+                          className="text-xs border border-gray-200 hover:border-red-300 hover:text-red-600
+                                     hover:bg-red-50 px-2.5 py-1 rounded-lg transition-all">
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+          {/* Modal confirmación eliminar */}
+          {confirmDelete && (() => {
+            const prod = allProducts.find(p => p.id === confirmDelete)
+            return (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                onClick={() => setConfirmDelete(null)}>
+                <div className="bg-white rounded-xl w-full max-w-sm p-6 flex flex-col gap-4"
+                  onClick={e => e.stopPropagation()}>
+                  <div>
+                    <p className="text-base font-medium text-gray-900">¿Eliminar producto?</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      <span className="font-medium text-gray-700">{prod?.name}</span> será eliminado permanentemente.
+                      El historial de ventas no se verá afectado.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setConfirmDelete(null)} className="flex-1 btn-secondary">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await deleteProduct.mutateAsync(confirmDelete)
+                        setConfirmDelete(null)
+                        if (editingProduct === confirmDelete) cancelEdit()
+                      }}
+                      disabled={deleteProduct.isPending}
+                      className="flex-1 text-sm text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-medium disabled:opacity-40">
+                      {deleteProduct.isPending ? 'Eliminando...' : 'Sí, eliminar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+      {/* ── Pestaña Inventario (contenido original) ──────── */}
+      {tab === 'stock' && (<>
 
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -578,6 +864,8 @@ export function InventoryPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   )

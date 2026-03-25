@@ -29,8 +29,9 @@ interface Props { onClose: () => void }
 
 export function PaymentModal({ onClose }: Props) {
   const color = useClientColor()
-  const [debtNote, setDebtNote]         = useState('')
-  const [advancePayment, setAdvance]    = useState('')
+  const [debtNote, setDebtNote]               = useState('')
+  const [advancePayment, setAdvance]          = useState('')
+  const [advanceMethod, setAdvanceMethod]     = useState<'Cash' | 'Card' | 'Transfer'>('Cash')
   const total           = usePosStore(s => s.total())
   const selectedCustomer = usePosStore(s => s.selectedCustomer)
   const defaultCustomer  = usePosStore(s => s.defaultCustomer)
@@ -58,10 +59,11 @@ export function PaymentModal({ onClose }: Props) {
 
   async function handleConfirm() {
     const res = await createOrder.mutateAsync({
-      paymentMethod:  method as PaymentMethod,
-      cashReceived:   method === 'Cash' ? received : method === 'PayLater' ? advance : total,
-      debtNote:       method === 'PayLater' ? debtNote : undefined,
-      advancePayment: method === 'PayLater' ? advance : undefined,
+      paymentMethod:        method as PaymentMethod,
+      cashReceived:         method === 'Cash' ? received : method === 'PayLater' ? advance : total,
+      debtNote:             method === 'PayLater' ? debtNote : undefined,
+      advancePayment:       method === 'PayLater' ? advance : undefined,
+      advancePaymentMethod: method === 'PayLater' && advance > 0 ? advanceMethod : undefined,
     })
     setTicket(res.data)
   }
@@ -184,6 +186,26 @@ export function PaymentModal({ onClose }: Props) {
                   min={0} max={total - 0.01}
                   onChange={e => setAdvance(e.target.value)} />
               </div>
+
+              {/* Método del anticipo — solo si hay anticipo */}
+              {advance > 0 && (
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">¿Cómo pagó el anticipo?</label>
+                  <div className="flex gap-2">
+                    {(['Cash', 'Card', 'Transfer'] as const).map(m => (
+                      <button key={m} type="button"
+                        onClick={() => setAdvanceMethod(m)}
+                        className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${
+                          advanceMethod === m
+                            ? 'border-indigo-400 bg-indigo-50 text-indigo-700 font-medium'
+                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                        }`}>
+                        {m === 'Cash' ? 'Efectivo' : m === 'Card' ? 'Tarjeta' : 'Transferencia'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Resumen deuda */}
               <div className="rounded-lg p-3 border"

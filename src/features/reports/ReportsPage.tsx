@@ -15,6 +15,9 @@ interface SaleRecord {
   total:          number
   discountAmount: number
   cashierName:    string
+  isDebtPayment:  boolean
+  advancePayment: number
+  pendingDebt:    number
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -96,19 +99,22 @@ export function ReportsPage() {
   // ── Exportar Excel ──────────────────────────────────────────────────────────
   function exportExcel() {
     setExporting(true)
-    type Row = { Folio: string; Fecha: string; Cliente: string; Cajero: string; Método: string; Descuento: number | string; Total: number | string }
+    type Row = { Folio: string; Fecha: string; Cliente: string; Cajero: string; Tipo: string; Método: string; Descuento: number | string; Total: number | string; Anticipo: number | string; Pendiente: number | string }
     const data: Row[] = sales.map(s => ({
-      Folio: `#${s.folio}`,
-      Fecha: new Date(s.createdAt).toLocaleString('es-MX'),
-      Cliente: s.customerName,
-      Cajero: s.cashierName,
-      Método: METHOD_LABELS[s.paymentMethod] ?? s.paymentMethod,
+      Folio:     `#${s.folio}`,
+      Fecha:     new Date(s.createdAt).toLocaleString('es-MX'),
+      Cliente:   s.customerName,
+      Cajero:    s.cashierName,
+      Tipo:      s.isDebtPayment ? 'Cobro deuda' : 'Venta',
+      Método:    METHOD_LABELS[s.paymentMethod] ?? s.paymentMethod,
       Descuento: s.discountAmount,
-      Total: s.total,
+      Total:     s.total,
+      Anticipo:  s.advancePayment > 0 ? s.advancePayment : '',
+      Pendiente: s.pendingDebt    > 0 ? s.pendingDebt    : '',
     }))
 
-    data.push({ Folio: '', Fecha: '', Cliente: '', Cajero: '', Método: '', Descuento: '', Total: '' })
-    data.push({ Folio: 'TOTAL', Fecha: '', Cliente: '', Cajero: '', Método: `${sales.length} ventas`, Descuento: totalDiscountSum, Total: totalSalesSum })
+    data.push({ Folio: '', Fecha: '', Cliente: '', Cajero: '', Tipo: '', Método: '', Descuento: '', Total: '', Anticipo: '', Pendiente: '' })
+    data.push({ Folio: 'TOTAL', Fecha: '', Cliente: '', Cajero: '', Tipo: `${sales.length} registros`, Método: '', Descuento: totalDiscountSum, Total: totalSalesSum, Anticipo: '', Pendiente: '' })
 
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
@@ -212,7 +218,7 @@ export function ReportsPage() {
             {
               label: 'Efectivo en caja',
               value: `$${dashboard.totalCash.toFixed(2)}`,
-              sub:   'cobrado hoy',
+              sub:   'ventas + anticipos + cobros',
             },
             {
               label: 'Descuentos',
@@ -233,16 +239,17 @@ export function ReportsPage() {
       {dashboard && dashboard.totalSales > 0 && (
         <div className="card p-4">
           <p className="text-sm font-medium text-gray-700 mb-3">Métodos de pago</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
-              { label: 'Efectivo',      value: dashboard.totalCash,     color: '#10b981' },
-              { label: 'Tarjeta',       value: dashboard.totalCard,     color: '#6366f1' },
-              { label: 'Transferencia', value: dashboard.totalTransfer, color: '#0ea5e9' },
-              { label: 'A crédito',     value: (dashboard as any).totalCreditSales ?? 0, color: '#f59e0b' },
+              { label: 'Efectivo',      value: dashboard.totalCash,                              color: '#10b981' },
+              { label: 'Tarjeta',       value: dashboard.totalCard,                              color: '#6366f1' },
+              { label: 'Transferencia', value: dashboard.totalTransfer,                          color: '#0ea5e9' },
+              { label: 'A crédito',     value: (dashboard as any).totalCreditSales ?? 0,         color: '#f59e0b' },
+              { label: 'Cobros deuda',  value: (dashboard as any).totalDebtPayments ?? 0,        color: '#8b5cf6' },
             ].map(m => {
-              const pct = dashboard.totalSales > 0
-                ? (m.value / dashboard.totalSales * 100)
-                : 0
+              const base = dashboard.totalCash + dashboard.totalCard + dashboard.totalTransfer
+                         + ((dashboard as any).totalCreditSales ?? 0)
+              const pct = base > 0 ? (m.value / base * 100) : 0
               return (
                 <div key={m.label}>
                   <div className="flex justify-between items-baseline mb-1">
@@ -269,7 +276,7 @@ export function ReportsPage() {
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <p className="text-sm font-medium text-gray-700">
-            Ventas ({sales.length})
+            Movimientos ({sales.length})
           </p>
           {isLoading && (
             <span className="text-xs text-gray-400 animate-pulse">Cargando...</span>
@@ -285,73 +292,65 @@ export function ReportsPage() {
             <table className="w-full text-sm" style={{ minWidth: '500px' }}>
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">
-                    Folio
-                  </th>
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">
-                    Hora
-                  </th>
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">
-                    Cliente
-                  </th>
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">
-                    Cajero
-                    </th>
-                  <th className="text-center px-4 py-2.5 text-xs text-gray-500 font-medium">
-                    Método
-                  </th>
-                  <th className="text-right px-4 py-2.5 text-xs text-gray-500 font-medium">
-                    Descuento
-                  </th>
-                  <th className="text-right px-4 py-2.5 text-xs text-gray-500 font-medium">
-                    Total
-                  </th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Folio</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Hora</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Cliente</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Cajero</th>
+                  <th className="text-center px-4 py-2.5 text-xs text-gray-500 font-medium">Tipo</th>
+                  <th className="text-center px-4 py-2.5 text-xs text-gray-500 font-medium">Método</th>
+                  <th className="text-right px-4 py-2.5 text-xs text-gray-500 font-medium">Descuento</th>
+                  <th className="text-right px-4 py-2.5 text-xs text-gray-500 font-medium">Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {sales.map(s => (
-                  <tr key={s.folio} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-500">
-                      #{s.folio}
-                    </td>
+                {sales.map((s, i) => (
+                  <tr key={`${s.folio}-${i}`}
+                    className={`transition-colors ${s.isDebtPayment ? 'bg-purple-50/40 hover:bg-purple-50' : 'hover:bg-gray-50'}`}>
+                    <td className="px-4 py-2.5 font-mono text-xs text-gray-500">#{s.folio}</td>
                     <td className="px-4 py-2.5 text-gray-600 text-xs">
-                      {new Date(s.createdAt).toLocaleTimeString('es-MX', {
-                        hour: '2-digit', minute: '2-digit',
-                      })}
+                      {new Date(s.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="px-4 py-2.5 text-gray-900 max-w-[140px] truncate">
-                      {s.customerName}
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-500 text-sm">
-                    {s.cashierName}
+                    <td className="px-4 py-2.5 text-gray-900 max-w-[140px] truncate">{s.customerName}</td>
+                    <td className="px-4 py-2.5 text-gray-500 text-sm">{s.cashierName}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      {s.isDebtPayment ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                          Cobro deuda
+                        </span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          Venta
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        s.paymentMethod === 'Cash'
-                          ? 'bg-green-100 text-green-700'
-                          : s.paymentMethod === 'Card'
-                            ? 'bg-indigo-100 text-indigo-700'
-                            : s.paymentMethod === 'Transfer'
-                              ? 'bg-sky-100 text-sky-700'
-                              : 'bg-amber-100 text-amber-700'
+                        s.paymentMethod === 'Cash'     ? 'bg-green-100 text-green-700'
+                        : s.paymentMethod === 'Card'   ? 'bg-indigo-100 text-indigo-700'
+                        : s.paymentMethod === 'Transfer' ? 'bg-sky-100 text-sky-700'
+                        : 'bg-amber-100 text-amber-700'
                       }`}>
                         {METHOD_LABELS[s.paymentMethod] ?? s.paymentMethod}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right text-xs text-red-500">
-                      {s.discountAmount > 0
-                        ? `-$${s.discountAmount.toFixed(2)}`
-                        : <span className="text-gray-300">—</span>}
+                      {s.discountAmount > 0 ? `-$${s.discountAmount.toFixed(2)}` : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right font-medium text-gray-900">
-                      ${s.total.toFixed(2)}
+                      <div>${s.total.toFixed(2)}</div>
+                      {s.paymentMethod === 'PayLater' && s.advancePayment > 0 && (
+                        <div className="text-xs text-green-600">+${s.advancePayment.toFixed(2)} anticipo</div>
+                      )}
+                      {s.paymentMethod === 'PayLater' && s.pendingDebt > 0 && (
+                        <div className="text-xs text-red-500">${s.pendingDebt.toFixed(2)} pendiente</div>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-gray-200 bg-gray-50">
-                  <td colSpan={5} className="px-4 py-3 text-sm font-medium text-gray-700">
+                  <td colSpan={6} className="px-4 py-3 text-sm font-medium text-gray-700">
                     Total
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-red-500">

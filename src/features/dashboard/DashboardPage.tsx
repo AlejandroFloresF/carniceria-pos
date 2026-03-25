@@ -128,24 +128,38 @@ export function DashboardPage() {
           {/* Método de pago */}
           <div className="card p-5">
             <p className="text-sm font-medium text-gray-700 mb-4">Desglose por método de pago</p>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { label: 'Efectivo',       value: data.totalCash },
-                { label: 'Tarjeta',        value: data.totalCard },
-                { label: 'Transferencia',  value: data.totalTransfer },
-              ].map(m => (
-                <div key={m.label} className="text-center">
-                  <p className="text-lg font-medium text-gray-900">${m.value.toFixed(2)}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{m.label}</p>
-                  <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-400 rounded-full"
-                      style={{ width: data.totalSales > 0 ? `${(m.value / data.totalSales * 100).toFixed(0)}%` : '0%' }}
-                    />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {(() => {
+                const d = data as any
+                const items = [
+                  { label: 'Efectivo',      value: data.totalCash,            color: '#10b981' },
+                  { label: 'Tarjeta',       value: data.totalCard,            color: '#6366f1' },
+                  { label: 'Transferencia', value: data.totalTransfer,        color: '#0ea5e9' },
+                  { label: 'A crédito',     value: d.totalCreditSales ?? 0,   color: '#f59e0b' },
+                ]
+                const base = items.reduce((s, m) => s + m.value, 0)
+                return items.map(m => (
+                  <div key={m.label} className="text-center">
+                    <p className="text-lg font-medium text-gray-900">${m.value.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{m.label}</p>
+                    <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all"
+                        style={{ width: base > 0 ? `${(m.value / base * 100).toFixed(0)}%` : '0%', backgroundColor: m.color }} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              })()}
             </div>
+            {(() => {
+              const d = data as any
+              const debtPay = d.totalDebtPayments ?? 0
+              return debtPay > 0 ? (
+                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Cobros de deuda recibidos</span>
+                  <span className="text-sm font-medium text-purple-700">${debtPay.toFixed(2)}</span>
+                </div>
+              ) : null
+            })()}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
