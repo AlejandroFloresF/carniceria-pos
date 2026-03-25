@@ -5,9 +5,10 @@ const METHOD_LABELS = { Cash: 'Efectivo', Card: 'Tarjeta', Transfer: 'Transferen
 interface Props {
   ticket: TicketDto
   onNewSale: () => void
+  closeLabel?: string
 }
 
-export function TicketView({ ticket, onNewSale }: Props) {
+export function TicketView({ ticket, onNewSale, closeLabel = 'Nueva venta' }: Props) {
   const issuedAt = new Date(ticket.issuedAt)
   const change = (ticket.cashReceived ?? 0) - (ticket.total ?? 0)
 
@@ -121,7 +122,7 @@ export function TicketView({ ticket, onNewSale }: Props) {
           Imprimir ticket
         </button>
         <button className="btn-primary" onClick={onNewSale}>
-          Nueva venta
+          {closeLabel}
         </button>
       </div>
     </div>

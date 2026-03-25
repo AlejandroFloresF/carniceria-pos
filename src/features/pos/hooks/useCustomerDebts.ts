@@ -18,8 +18,12 @@ export function useCustomerDetail(customerId: string | null) {
 export function useMarkDebtPaid() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (debtId: string) => api.post(`/customers/debts/${debtId}/pay`),
-    onSuccess: (_, debtId) => {
+    mutationFn: ({ debtId, paymentMethod, cashReceived }: {
+      debtId: string
+      paymentMethod: string
+      cashReceived: number
+    }) => api.post(`/customers/debts/${debtId}/pay`, { paymentMethod, cashReceived }),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['customer-detail'] })
       qc.invalidateQueries({ queryKey: ['customers'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })

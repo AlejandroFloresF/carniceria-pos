@@ -3,7 +3,7 @@ import { useCustomerDetail, useMarkDebtPaid, useSetCustomerPrice, useDeleteCusto
 import { useProducts } from '../hooks/useProducts'
 import { useTicketByOrder } from '../hooks/useTicket'
 import { TicketView } from './TicketView'
-import type { Customer } from '../types/pos.types'
+import type { Customer, CustomerDebt } from '../types/pos.types'
 
 interface Props {
   customer: Customer
@@ -32,7 +32,7 @@ function CustomerAvatar({ customer, size = 'md' }: {
   )
 }
 
-// ── Ticket Modal ──────────────────────────────────────────────────────────────
+// ── Ticket Modal (ver ticket sin pagar) ───────────────────────────────────────
 function TicketModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
   const { data: ticket, isLoading } = useTicketByOrder(orderId)
 
@@ -53,10 +53,119 @@ function TicketModal({ orderId, onClose }: { orderId: string; onClose: () => voi
               <span className="text-base font-medium text-gray-900">Ticket #{ticket.folio}</span>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
-            <TicketView ticket={ticket} onNewSale={onClose} />
+            <TicketView ticket={ticket} onNewSale={onClose} closeLabel="Cerrar" />
           </>
         ) : (
           <div className="p-8 text-center text-sm text-gray-400">Ticket no encontrado</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Debt Payment Modal ─────────────────────────────────────────────────────────
+function DebtPaymentModal({
+  debt,
+  customer,
+  onConfirm,
+  onClose,
+}: {
+  debt: CustomerDebt
+  customer: Customer
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const [confirmed, setConfirmed] = useState(false)
+  const { data: ticket, isLoading } = useTicketByOrder(debt.orderId)
+  const color = customer.color ?? '#6366f1'
+
+  function handleConfirm() {
+    onConfirm()
+    setConfirmed(true)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl w-full max-w-sm max-h-[85vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <span className="text-base font-medium text-gray-900">
+            {confirmed ? '✅ Pago registrado' : 'Confirmar pago'}
+          </span>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+        </div>
+
+        {!confirmed ? (
+          // ── Paso 1: confirmar ──────────────────────────────
+          <div className="p-5 flex flex-col gap-4">
+            {/* Monto */}
+            <div
+              className="rounded-lg px-4 py-3 text-center"
+              style={{ backgroundColor: `${color}10`, border: `1px solid ${color}25` }}
+            >
+              <p className="text-xs text-gray-500 mb-1">Monto pendiente</p>
+              <p className="text-2xl font-semibold" style={{ color }}>${debt.amount.toFixed(2)}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Folio #{debt.orderFolio} · {new Date(debt.createdAt).toLocaleDateString('es-MX')}
+              </p>
+            </div>
+
+            {/* Nota de la deuda */}
+            {debt.note && (
+              <div className="flex items-start gap-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-2">
+                <span className="shrink-0">📝</span>
+                <span>{debt.note}</span>
+              </div>
+            )}
+
+            {/* Detalle de la compra */}
+            {isLoading ? (
+              <p className="text-xs text-gray-400 text-center py-2">Cargando detalle...</p>
+            ) : ticket ? (
+              <div className="flex flex-col gap-1.5 border border-gray-100 rounded-lg p-3">
+                <p className="text-xs font-medium text-gray-500 mb-0.5">Lo que se llevó</p>
+                {ticket.items.map((item, i) => (
+                  <div key={i} className="flex justify-between text-xs">
+                    <span className="text-gray-700">
+                      {item.productName}
+                      <span className="text-gray-400 ml-1">({item.quantity} {item.unit})</span>
+                    </span>
+                    <span className="text-gray-600 font-medium">${item.total.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {/* Botones */}
+            <div className="flex gap-2 pt-1">
+              <button onClick={onClose} className="flex-1 btn-secondary">Cancelar</button>
+              <button
+                onClick={handleConfirm}
+                className="flex-1 text-sm text-white px-4 py-2.5 rounded-lg font-medium"
+                style={{ backgroundColor: color }}
+              >
+                Confirmar pago
+              </button>
+            </div>
+          </div>
+        ) : (
+          // ── Paso 2: ticket para imprimir ───────────────────
+          isLoading ? (
+            <div className="p-8 text-center text-sm text-gray-400">Cargando ticket...</div>
+          ) : ticket ? (
+            <TicketView ticket={ticket} onNewSale={onClose} closeLabel="Cerrar" />
+          ) : (
+            <div className="p-5 text-center flex flex-col gap-3">
+              <p className="text-sm text-gray-500">Pago registrado correctamente</p>
+              <button onClick={onClose} className="btn-primary">Cerrar</button>
+            </div>
+          )
         )}
       </div>
     </div>
@@ -74,8 +183,12 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
   const [tab, setTab]               = useState<'debts' | 'prices'>('debts')
   const [editPrice, setEditPrice]   = useState<{ productId: string; value: string } | null>(null)
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null)
+  const [pendingPayment, setPendingPayment] = useState<CustomerDebt | null>(null)
 
   const color = customer.color ?? '#6366f1'
+  const liveDebt = detail
+    ? detail.pendingDebts.reduce((s, d) => s + d.amount, 0)
+    : customer.totalDebt
 
   return (
     <>
@@ -94,9 +207,9 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="modal-title">{customer.name}</span>
-                  {(detail?.totalDebt ?? customer.totalDebt) > 0 && (
+                  {liveDebt > 0 && (
                     <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
-                      Debe ${(detail?.totalDebt ?? customer.totalDebt).toFixed(2)}
+                      Debe ${liveDebt.toFixed(2)}
                     </span>
                   )}
                 </div>
@@ -246,11 +359,9 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
 
                         {/* Botón pagado */}
                         <button
-                          onClick={() => markPaid.mutate(d.id)}
-                          disabled={markPaid.isPending}
+                          onClick={() => setPendingPayment(d)}
                           className="shrink-0 flex items-center gap-1.5 text-xs text-white
-                                     px-3 py-2 rounded-lg disabled:opacity-50 transition-opacity
-                                     min-h-[36px]"
+                                     px-3 py-2 rounded-lg transition-opacity min-h-[36px]"
                           style={{ backgroundColor: color }}
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -431,11 +542,21 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
         </div>
       </div>
 
-      {/* ── Ticket Modal ──────────────────────────────────────── */}
+      {/* ── Ticket Modal (ver ticket sin pagar) ───────────────── */}
       {viewingOrderId && (
         <TicketModal
           orderId={viewingOrderId}
           onClose={() => setViewingOrderId(null)}
+        />
+      )}
+
+      {/* ── Debt Payment Modal ─────────────────────────────────── */}
+      {pendingPayment && (
+        <DebtPaymentModal
+          debt={pendingPayment}
+          customer={customer}
+          onConfirm={() => markPaid.mutate(pendingPayment.id)}
+          onClose={() => setPendingPayment(null)}
         />
       )}
     </>

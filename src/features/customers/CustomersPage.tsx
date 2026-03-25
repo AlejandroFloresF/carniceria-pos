@@ -3,7 +3,9 @@ import { useCustomers } from '../pos/hooks/useCustomers'
 import { useCreateCustomer, useDeleteCustomer, useUpdateCustomer } from '../pos/hooks/useCreateCustomer'
 import { useCustomerDetail, useMarkDebtPaid, useSetCustomerPrice, useDeleteCustomerPrice } from '../pos/hooks/useCustomerDebts'
 import { useProducts } from '../pos/hooks/useProducts'
-import type { Customer } from '../pos/types/pos.types'
+import { useTicketByOrder } from '../pos/hooks/useTicket'
+import { TicketView } from '../pos/components/TicketView'
+import type { Customer, CustomerDebt, TicketDto } from '../pos/types/pos.types'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -78,6 +80,182 @@ function CustomerAvatar({ customer, size = 'md' }: AvatarProps) {
   )
 }
 
+// ── DebtPaymentModal ──────────────────────────────────────────────────────────
+
+type DebtPayMethod = 'Cash' | 'Card' | 'Transfer'
+const DEBT_METHODS: { value: DebtPayMethod; label: string }[] = [
+  { value: 'Cash',     label: 'Efectivo'       },
+  { value: 'Card',     label: 'Tarjeta'        },
+  { value: 'Transfer', label: 'Transferencia'  },
+]
+
+function buildQuickAmounts(total: number): number[] {
+  const steps = [50, 100, 200, 500]
+  const result = new Set<number>()
+  for (const step of steps) {
+    result.add(Math.ceil(total / step) * step)
+    if (result.size >= 4) break
+  }
+  return [...result].slice(0, 4)
+}
+
+function DebtPaymentModal({
+  debt, customer, markPaid, onClose,
+}: {
+  debt: CustomerDebt
+  customer: Customer
+  markPaid: { mutateAsync: (args: { debtId: string; paymentMethod: string; cashReceived: number }) => Promise<{ data: TicketDto }>; isPending: boolean }
+  onClose: () => void
+}) {
+  const [method, setMethod]             = useState<DebtPayMethod>('Cash')
+  const [cashReceived, setCashReceived] = useState('')
+  const [receipt, setReceipt]           = useState<TicketDto | null>(null)
+  const { data: previewTicket, isLoading: loadingPreview } = useTicketByOrder(debt.orderId)
+  const color = customer.color ?? '#6366f1'
+
+  const received     = parseFloat(cashReceived) || 0
+  const change       = Math.floor(received - debt.amount)
+  const canConfirm   = method !== 'Cash' || change >= 0
+  const quickAmounts = buildQuickAmounts(debt.amount)
+
+  async function handleConfirm() {
+    const res = await markPaid.mutateAsync({
+      debtId: debt.id,
+      paymentMethod: method,
+      cashReceived: method === 'Cash' ? received : debt.amount,
+    })
+    setReceipt(res.data)
+  }
+
+  if (receipt) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4"
+        onClick={onClose}>
+        <div className="bg-white rounded-xl w-full max-w-sm max-h-[85vh] overflow-y-auto"
+          onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <span className="text-base font-medium text-gray-900">✅ Pago registrado</span>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+          </div>
+          <TicketView ticket={receipt} onNewSale={onClose} closeLabel="Cerrar" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4"
+      onClick={onClose}>
+      <div className="bg-white rounded-xl w-full max-w-sm max-h-[85vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <span className="text-base font-medium text-gray-900">Cobrar deuda</span>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+        </div>
+
+        <div className="p-5 flex flex-col gap-4">
+          {/* Monto */}
+          <div className="rounded-lg px-4 py-3 text-center"
+            style={{ backgroundColor: `${color}10`, border: `1px solid ${color}25` }}>
+            <p className="text-xs text-gray-500 mb-1">Monto a cobrar</p>
+            <p className="text-2xl font-semibold" style={{ color }}>${debt.amount.toFixed(2)}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Folio #{debt.orderFolio} · {new Date(debt.createdAt).toLocaleDateString('es-MX')}
+            </p>
+          </div>
+
+          {/* Nota */}
+          {debt.note && (
+            <div className="flex items-start gap-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-2">
+              <span className="shrink-0">📝</span>
+              <span>{debt.note}</span>
+            </div>
+          )}
+
+          {/* Detalle de compra */}
+          {loadingPreview ? (
+            <p className="text-xs text-gray-400 text-center py-1">Cargando detalle...</p>
+          ) : previewTicket ? (
+            <div className="flex flex-col gap-1 border border-gray-100 rounded-lg p-3">
+              <p className="text-xs font-medium text-gray-500 mb-0.5">Lo que se llevó</p>
+              {previewTicket.items.map((item, i) => (
+                <div key={i} className="flex justify-between text-xs">
+                  <span className="text-gray-700">{item.productName}
+                    <span className="text-gray-400 ml-1">({item.quantity} {item.unit})</span>
+                  </span>
+                  <span className="text-gray-600 font-medium">${item.total.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Método de pago */}
+          <div>
+            <p className="text-xs text-gray-500 mb-2">Método de pago</p>
+            <div className="grid grid-cols-3 gap-2">
+              {DEBT_METHODS.map(m => (
+                <button key={m.value} onClick={() => setMethod(m.value)}
+                  className={`py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                    method === m.value
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Efectivo */}
+          {method === 'Cash' && (
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Cantidad recibida</p>
+                <input type="number" className="input-base text-right text-xl"
+                  value={cashReceived} placeholder="0.00" autoFocus
+                  onChange={e => setCashReceived(e.target.value)} />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {quickAmounts.map(a => (
+                  <button key={a} onClick={() => setCashReceived(String(a))}
+                    className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50">
+                    ${a.toFixed(0)}
+                  </button>
+                ))}
+              </div>
+              {cashReceived && (
+                <div className={`rounded-lg p-3 text-center border ${
+                  change >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                }`}>
+                  <p className={`text-xs mb-0.5 ${change >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {change >= 0 ? 'Cambio a entregar' : 'Monto insuficiente'}
+                  </p>
+                  <p className={`text-xl font-medium ${change >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                    {change >= 0
+                      ? `$${change.toFixed(0)}`
+                      : `$${Math.abs(received - debt.amount).toFixed(2)} faltantes`}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button onClick={onClose} className="flex-1 btn-secondary">Cancelar</button>
+            <button onClick={handleConfirm}
+              disabled={!canConfirm || markPaid.isPending}
+              className="flex-1 text-sm text-white px-4 py-2.5 rounded-lg font-medium disabled:opacity-40"
+              style={{ backgroundColor: color }}>
+              {markPaid.isPending ? 'Procesando...' : 'Confirmar cobro'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── CustomerDetailModal ───────────────────────────────────────────────────────
 
 interface DetailModalProps {
@@ -93,10 +271,15 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
   const { data: products = [] } = useProducts('')
   const [tab, setTab]             = useState<'debts'|'prices'>('debts')
   const [editPrice, setEditPrice] = useState<{ productId: string; value: string }|null>(null)
+  const [pendingPayment, setPendingPayment] = useState<CustomerDebt | null>(null)
 
   const color = customer.color ?? '#6366f1'
+  const liveDebt = detail
+    ? detail.pendingDebts.reduce((s, d) => s + d.amount, 0)
+    : customer.totalDebt
 
   return (
+    <>
     <div className="modal-overlay">
       <div className="modal max-h-[90vh] overflow-hidden flex flex-col" style={{ maxWidth: '580px' }}>
 
@@ -106,9 +289,9 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
             <CustomerAvatar customer={customer} size="md" />
             <div>
               <span className="modal-title">{customer.name}</span>
-              {customer.totalDebt > 0 && (
+              {liveDebt > 0 && (
                 <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
-                  Debe ${customer.totalDebt.toFixed(2)}
+                  Debe ${liveDebt.toFixed(2)}
                 </span>
               )}
             </div>
@@ -197,9 +380,8 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
                         )}
                       </div>
                       <button
-                        onClick={() => markPaid.mutate(d.id)}
-                        disabled={markPaid.isPending}
-                        className="shrink-0 text-xs text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
+                        onClick={() => setPendingPayment(d)}
+                        className="shrink-0 text-xs text-white px-3 py-1.5 rounded-lg"
                         style={{ backgroundColor: color }}>
                         ✓ Pagado
                       </button>
@@ -316,6 +498,16 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
         </div>
       </div>
     </div>
+
+    {pendingPayment && (
+      <DebtPaymentModal
+        debt={pendingPayment}
+        customer={customer}
+        markPaid={markPaid}
+        onClose={() => setPendingPayment(null)}
+      />
+    )}
+    </>
   )
 }
 

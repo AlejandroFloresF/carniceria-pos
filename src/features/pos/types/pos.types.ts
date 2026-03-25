@@ -27,7 +27,8 @@ export interface CreateOrderRequest {
   paymentMethod: PaymentMethod
   cashReceived: number
   customerId?: string
-  debtNote?: string          // ← agrega para notas en deuda
+  debtNote?: string
+  advancePayment?: number
 }
 
 export interface TicketItemDto {

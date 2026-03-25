@@ -29,7 +29,8 @@ interface Props { onClose: () => void }
 
 export function PaymentModal({ onClose }: Props) {
   const color = useClientColor()
-  const [debtNote, setDebtNote] = useState('')
+  const [debtNote, setDebtNote]         = useState('')
+  const [advancePayment, setAdvance]    = useState('')
   const total           = usePosStore(s => s.total())
   const selectedCustomer = usePosStore(s => s.selectedCustomer)
   const defaultCustomer  = usePosStore(s => s.defaultCustomer)
@@ -45,9 +46,11 @@ export function PaymentModal({ onClose }: Props) {
   )
 
   const received    = parseFloat(cashReceived) || 0
-  const change = Math.floor(received - total)
+  const advance     = parseFloat(advancePayment) || 0
+  const debtAmount  = total - advance
+  const change      = Math.floor(received - total)
   const canConfirm  = method === 'PayLater'
-    ? !!isRealCustomer
+    ? !!isRealCustomer && advance < total
     : method !== 'Cash' || change >= 0
   const quickAmounts = buildQuickAmounts(total)
 
@@ -55,9 +58,10 @@ export function PaymentModal({ onClose }: Props) {
 
   async function handleConfirm() {
     const res = await createOrder.mutateAsync({
-      paymentMethod: method as PaymentMethod,
-      cashReceived:  method === 'Cash' ? received : method === 'PayLater' ? 0 : total,
-      debtNote:      method === 'PayLater' ? debtNote : undefined,
+      paymentMethod:  method as PaymentMethod,
+      cashReceived:   method === 'Cash' ? received : method === 'PayLater' ? advance : total,
+      debtNote:       method === 'PayLater' ? debtNote : undefined,
+      advancePayment: method === 'PayLater' ? advance : undefined,
     })
     setTicket(res.data)
   }
@@ -170,14 +174,38 @@ export function PaymentModal({ onClose }: Props) {
           {/* PayLater info */}
           {method === 'PayLater' && (
             <div className="flex flex-col gap-3">
+              {/* Anticipo */}
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">
+                  Anticipo recibido <span className="text-gray-400">(opcional)</span>
+                </label>
+                <input type="number" className="input-base text-right"
+                  value={advancePayment} placeholder="0.00"
+                  min={0} max={total - 0.01}
+                  onChange={e => setAdvance(e.target.value)} />
+              </div>
+
+              {/* Resumen deuda */}
               <div className="rounded-lg p-3 border"
                 style={{ backgroundColor: `${color}08`, borderColor: `${color}25` }}>
-                <p className="text-sm font-medium" style={{ color }}>Pagar después</p>
-                <p className="text-xs mt-1" style={{ color: `${color}90` }}>
-                  Se registrará una deuda de <span className="font-medium">${total.toFixed(2)}</span> a nombre
-                  de <span className="font-medium">{selectedCustomer?.name}</span>.
-                </p>
+                <p className="text-sm font-medium" style={{ color }}>Resumen de deuda</p>
+                <div className="mt-1.5 flex flex-col gap-0.5">
+                  <div className="flex justify-between text-xs" style={{ color: `${color}90` }}>
+                    <span>Total orden</span><span>${total.toFixed(2)}</span>
+                  </div>
+                  {advance > 0 && (
+                    <div className="flex justify-between text-xs text-green-700">
+                      <span>Anticipo</span><span>− ${advance.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-medium pt-1 border-t border-dashed"
+                    style={{ color, borderColor: `${color}30` }}>
+                    <span>Queda debiendo</span>
+                    <span>${debtAmount.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
+
               <div>
                 <label className="text-xs text-gray-500 block mb-1">
                   Nota para esta deuda <span className="text-gray-400">(opcional)</span>

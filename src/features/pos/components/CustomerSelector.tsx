@@ -35,12 +35,10 @@ export function CustomerSelector() {
         )
 
         const priceMap = Object.fromEntries(
-          products
-            .filter(p => p.hasCustomPrice)
-            .map(p => [p.id, p.effectivePrice])
+          products.map(p => [p.id, p.effectivePrice])
         )
 
-        // Actualiza precio de cada item que tenga precio especial
+        // Actualiza precio de cada item (custom o base) al cambiar de cliente
         items.forEach(item => {
           if (priceMap[item.product.id] !== undefined) {
             updateItemPrice(item.product.id, priceMap[item.product.id])
