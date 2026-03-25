@@ -9,6 +9,7 @@ export function useSessionSummary(sessionId: string | undefined) {
       const { data } = await api.get<SessionSummaryDto>(`/sessions/${sessionId}/summary`)
       return data
     },
-    enabled: !!sessionId,
+    enabled:   !!sessionId,
+    staleTime: 0,
   })
 }
