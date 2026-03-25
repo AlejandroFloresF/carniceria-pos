@@ -96,7 +96,8 @@ export function ReportsPage() {
   // ── Exportar Excel ──────────────────────────────────────────────────────────
   function exportExcel() {
     setExporting(true)
-    const data = sales.map(s => ({
+    type Row = { Folio: string; Fecha: string; Cliente: string; Cajero: string; Método: string; Descuento: number | string; Total: number | string }
+    const data: Row[] = sales.map(s => ({
       Folio: `#${s.folio}`,
       Fecha: new Date(s.createdAt).toLocaleString('es-MX'),
       Cliente: s.customerName,
@@ -105,6 +106,9 @@ export function ReportsPage() {
       Descuento: s.discountAmount,
       Total: s.total,
     }))
+
+    data.push({ Folio: '', Fecha: '', Cliente: '', Cajero: '', Método: '', Descuento: '', Total: '' })
+    data.push({ Folio: 'TOTAL', Fecha: '', Cliente: '', Cajero: '', Método: `${sales.length} ventas`, Descuento: totalDiscountSum, Total: totalSalesSum })
 
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
