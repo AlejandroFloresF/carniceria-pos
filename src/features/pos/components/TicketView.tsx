@@ -11,6 +11,54 @@ export function TicketView({ ticket, onNewSale }: Props) {
   const issuedAt = new Date(ticket.issuedAt)
   const change = (ticket.cashReceived ?? 0) - (ticket.total ?? 0)
 
+  const handlePrint = () => {
+    const content = document.getElementById('ticket-printable')
+    if (!content) return
+
+    const win = window.open('', '_blank', 'width=320,height=600')
+    if (!win) return
+
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ticket ${ticket.folio}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Courier New', monospace; font-size: 12px; padding: 8px; width: 280px; }
+    .text-center { text-align: center; }
+    .text-xs { font-size: 11px; }
+    .text-sm { font-size: 12px; }
+    .font-medium { font-weight: 500; }
+    .text-gray-400 { color: #9ca3af; }
+    .text-gray-500 { color: #6b7280; }
+    .text-gray-900 { color: #111827; }
+    .text-green-600 { color: #16a34a; }
+    .flex { display: flex; }
+    .justify-between { justify-content: space-between; }
+    .flex-col { flex-direction: column; }
+    .gap-1 > * + * { margin-top: 4px; }
+    .gap-2 > * + * { margin-top: 8px; }
+    .gap-3 > * + * { margin-top: 12px; }
+    .p-5 { padding: 20px; }
+    .pt-1 { padding-top: 4px; }
+    .pt-3 { padding-top: 12px; }
+    .pb-3 { padding-bottom: 12px; }
+    .mt-0\\.5 { margin-top: 2px; }
+    .border-t { border-top: 1px dashed #e5e7eb; }
+    .border-b { border-bottom: 1px dashed #e5e7eb; }
+    .border-dashed { border-style: dashed; }
+    .border-gray-200 { border-color: #e5e7eb; }
+  </style>
+</head>
+<body>${content.innerHTML}</body>
+</html>`)
+
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print(); win.close() }, 250)
+  }
+
   return (
     <div className="flex flex-col">
       <div id="ticket-printable" className="p-5 flex flex-col gap-3">
@@ -69,7 +117,7 @@ export function TicketView({ ticket, onNewSale }: Props) {
       </div>
 
       <div className="p-4 flex flex-col gap-2 border-t border-gray-100">
-        <button className="btn-secondary" onClick={() => window.print()}>
+        <button className="btn-secondary" onClick={handlePrint}>
           Imprimir ticket
         </button>
         <button className="btn-primary" onClick={onNewSale}>
