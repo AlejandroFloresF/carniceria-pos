@@ -1,16 +1,46 @@
 @echo off
-title Carniceria Launcher
+title Carniceria La Unica - Iniciando...
+echo.
+echo  ==========================================
+echo   Carniceria La Unica - Sistema POS
+echo  ==========================================
+echo.
+echo  Abriendo Backend y Frontend...
+echo.
 
-:: Try default Git Bash locations
-set GITBASH=C:\Program Files\Git\bin\bash.exe
-if not exist "%GITBASH%" set GITBASH=C:\Program Files (x86)\Git\bin\bash.exe
+start "Carniceria - Backend API" cmd /k "^
+cd /d C:\Users\jafg8\Desktop\carniceria\Carniceria.API && ^
+echo. && ^
+echo  [Backend] Actualizando repositorio... && ^
+git pull && ^
+echo. && ^
+echo  [Backend] Restaurando dependencias .NET... && ^
+dotnet restore && ^
+echo. && ^
+echo  [Backend] Iniciando API... && ^
+echo  --------------------------------------- && ^
+dotnet run --project Carniceria.API ^
+"
 
-if not exist "%GITBASH%" (
-    echo Git Bash not found. Please install Git for Windows.
-    echo https://git-scm.com/download/win
-    pause
-    exit /b 1
-)
+timeout /t 2 /nobreak >nul
 
-:: Run the startup script in Git Bash
-"%GITBASH%" --login -i "%~dp0startup.sh"
+start "Carniceria - Frontend POS" cmd /k "^
+cd /d C:\Users\jafg8\Desktop\carniceria\carniceria-pos && ^
+echo. && ^
+echo  [Frontend] Actualizando repositorio... && ^
+git pull && ^
+echo. && ^
+echo  [Frontend] Instalando dependencias npm... && ^
+npm install && ^
+echo. && ^
+echo  [Frontend] Iniciando servidor Vite... && ^
+echo  --------------------------------------- && ^
+npm run dev ^
+"
+
+echo  Listo! Revisa las dos ventanas que se abrieron.
+echo.
+echo  Backend:  http://localhost:5049/swagger
+echo  Frontend: http://localhost:5173
+echo.
+pause
