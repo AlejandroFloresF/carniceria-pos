@@ -10,9 +10,10 @@ export function OrderSummary() {
         <input
           type="number"
           className="input-base !py-1 w-16 text-right text-xs"
-          value={discountPercent}
+          value={discountPercent === 0 ? '' : discountPercent}
           placeholder="0"
           min={0} max={100} step={1}
+          onFocus={e => e.target.select()}
           onChange={e => {
             const val = e.target.value
             const parsed = val === '' ? 0 : Math.min(100, Math.max(0, parseInt(val, 10) || 0))

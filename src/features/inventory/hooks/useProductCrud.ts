@@ -9,6 +9,7 @@ export interface ProductAdmin {
   unit:         string
   stockKg:      number
   isActive:     boolean
+  barcode?:     string
 }
 
 export function useAllProducts() {
@@ -22,12 +23,12 @@ export function useAllProducts() {
 export function useCreateProduct() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { name: string; category: string; price: number; unit: string }) =>
+    mutationFn: (body: { name: string; category: string; price: number; unit: string; barcode?: string }) =>
       api.post('/products', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products-admin'] })
       qc.invalidateQueries({ queryKey: ['products'] })
-      qc.invalidateQueries({ queryKey: ['stock-status'] })
+      qc.invalidateQueries({ queryKey: ['inventory-status'] })
     },
   })
 }
@@ -35,12 +36,12 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name: string; category: string; price: number; unit: string }) =>
+    mutationFn: ({ id, ...body }: { id: string; name: string; category: string; price: number; unit: string; barcode?: string }) =>
       api.put(`/products/${id}`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products-admin'] })
       qc.invalidateQueries({ queryKey: ['products'] })
-      qc.invalidateQueries({ queryKey: ['stock-status'] })
+      qc.invalidateQueries({ queryKey: ['inventory-status'] })
     },
   })
 }
@@ -52,7 +53,7 @@ export function useToggleProductActive() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products-admin'] })
       qc.invalidateQueries({ queryKey: ['products'] })
-      qc.invalidateQueries({ queryKey: ['stock-status'] })
+      qc.invalidateQueries({ queryKey: ['inventory-status'] })
     },
   })
 }
@@ -64,7 +65,7 @@ export function useDeleteProduct() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products-admin'] })
       qc.invalidateQueries({ queryKey: ['products'] })
-      qc.invalidateQueries({ queryKey: ['stock-status'] })
+      qc.invalidateQueries({ queryKey: ['inventory-status'] })
     },
   })
 }

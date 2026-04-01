@@ -2,6 +2,7 @@ export interface StockStatusDto {
   productId: string
   productName: string
   category: string
+  unit: string
   currentStockKg: number
   minimumStockKg: number
   isBelowMinimum: boolean

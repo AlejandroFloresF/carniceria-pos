@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { usePosStore } from '@/store/posStore'
 import { useOpenSession } from '../hooks/useOpenSession'
-import { useCashiers } from '\../hooks/useCashiers'
+import { useCashiers } from '../hooks/useCashiers'
 import { api } from '@/lib/api'
 import { CustomerAvatar } from './CustomerAvatar'
+import { LoginPanel } from '@/features/auth/LoginPanel'
 import type { Customer } from '../types/pos.types'
 
 export function OpenSessionModal() {
@@ -146,8 +147,10 @@ export function OpenSessionModal() {
               type="number"
               step={50}
               min={0}
-              value={openingCash}
-              onChange={e => setOpeningCash(Number(e.target.value))}
+              value={openingCash === 0 ? '' : openingCash}
+              placeholder="0"
+              onFocus={e => e.target.select()}
+              onChange={e => setOpeningCash(e.target.value === '' ? 0 : Number(e.target.value))}
             />
           </div>
         </div>
@@ -175,6 +178,8 @@ export function OpenSessionModal() {
         >
           {loading ? 'Iniciando...' : 'Iniciar turno'}
         </button>
+
+        <LoginPanel />
       </div>
     </div>
   )

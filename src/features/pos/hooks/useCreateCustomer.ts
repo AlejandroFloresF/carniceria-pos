@@ -7,7 +7,10 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: (data: Omit<Customer, 'id' | 'totalDebt'>) =>
       api.post<Customer>('/customers', data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] })
+      qc.invalidateQueries({ queryKey: ['customers-list'] })
+    },
   })
 }
 
@@ -16,7 +19,10 @@ export function useUpdateCustomer() {
   return useMutation({
     mutationFn: ({ id, ...data }: Omit<Customer, 'totalDebt'>) =>
       api.put<Customer>(`/customers/${id}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] })
+      qc.invalidateQueries({ queryKey: ['customers-list'] })
+    },
   })
 }
 

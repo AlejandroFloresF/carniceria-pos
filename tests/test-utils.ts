@@ -157,8 +157,9 @@ export async function setupApiMocks(page: Page) {
         totalCard:      440.50,
         totalTransfer:  0,
         totalDiscounts: 50,
-        openingCash:    500,
-        expectedCash:   1300,
+        openingCash:       500,
+        expectedCash:      1300,
+        totalDebtPayments: 0,
       },
     })
   })

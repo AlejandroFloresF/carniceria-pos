@@ -10,7 +10,7 @@ export function CloseSessionModal({ onClose }: Props) {
   const [closingCash, setClosingCash] = useState('')
   const closeSessionMutation = useCloseSession()
   const { data: summary } = useSessionSummary(session?.id)
-  const expectedCash = (session?.openingCash ?? 0) + (summary?.totalCash ?? 0)
+  const expectedCash = summary?.expectedCash ?? (session?.openingCash ?? 0)
   const effectiveCash = closingCash === '' ? 0 : parseFloat(closingCash) || 0
   const diff          = effectiveCash - expectedCash
 
@@ -76,6 +76,7 @@ export function CloseSessionModal({ onClose }: Props) {
               min={0}
               placeholder={`${expectedCash.toFixed(2)}`}
               value={closingCash}
+              onFocus={e => e.target.select()}
               onChange={e => setClosingCash(e.target.value)}
             />
           </div>

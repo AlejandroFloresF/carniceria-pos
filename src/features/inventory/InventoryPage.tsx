@@ -35,11 +35,12 @@ export function InventoryPage() {
   const deleteProduct               = useDeleteProduct()
   const [productSearch, setProductSearch]     = useState('')
   const [showInactive, setShowInactive]       = useState(false)
-  const [productForm, setProductForm]         = useState({ name: '', category: 'Carne', price: '', unit: 'kg' })
+  const [productForm, setProductForm]         = useState({ name: '', category: 'Carne', price: '', unit: 'kg', barcode: '' })
   const [editingProduct, setEditingProduct]   = useState<string | null>(null)
   const [productError, setProductError]       = useState('')
   const [confirmDelete, setConfirmDelete]     = useState<string | null>(null)
   const [customCategory, setCustomCategory]   = useState('')
+  const [showProductModal, setShowProductModal] = useState(false)
 
   // Categorías únicas del catálogo + las predefinidas
   const allCategories = Array.from(new Set([
@@ -61,14 +62,15 @@ export function InventoryPage() {
     if (!category)                { setProductError('La categoría es requerida'); return }
     try {
       if (editingProduct) {
-        await updateProduct.mutateAsync({ id: editingProduct, name: productForm.name.trim(), category, price, unit: productForm.unit })
+        await updateProduct.mutateAsync({ id: editingProduct, name: productForm.name.trim(), category, price, unit: productForm.unit, barcode: productForm.barcode.trim() || undefined })
       } else {
-        await createProduct.mutateAsync({ name: productForm.name.trim(), category, price, unit: productForm.unit })
+        await createProduct.mutateAsync({ name: productForm.name.trim(), category, price, unit: productForm.unit, barcode: productForm.barcode.trim() || undefined })
       }
-      setProductForm({ name: '', category: 'Carne', price: '', unit: 'kg' })
+      setProductForm({ name: '', category: 'Carne', price: '', unit: 'kg', barcode: '' })
       setEditingProduct(null)
       setProductError('')
       setCustomCategory('')
+      setShowProductModal(false)
     } catch (err: any) {
       setProductError(err?.response?.data?.error ?? 'Error al guardar producto')
     }
@@ -77,16 +79,18 @@ export function InventoryPage() {
   function startEdit(p: typeof allProducts[0]) {
     setEditingProduct(p.id)
     const isKnown = DEFAULT_CATEGORIES.includes(p.category)
-    setProductForm({ name: p.name, category: isKnown ? p.category : '__custom__', price: String(p.pricePerUnit), unit: p.unit })
+    setProductForm({ name: p.name, category: isKnown ? p.category : '__custom__', price: String(p.pricePerUnit), unit: p.unit, barcode: (p as any).barcode ?? '' })
     setCustomCategory(isKnown ? '' : p.category)
     setProductError('')
+    setShowProductModal(true)
   }
 
   function cancelEdit() {
     setEditingProduct(null)
-    setProductForm({ name: '', category: 'Carne', price: '', unit: 'kg' })
+    setProductForm({ name: '', category: 'Carne', price: '', unit: 'kg', barcode: '' })
     setProductError('')
     setCustomCategory('')
+    setShowProductModal(false)
   }
 
   const registerEntry = useRegisterEntry()
@@ -111,6 +115,7 @@ export function InventoryPage() {
     })
 
   const alertCount = stock.filter(s => s.isBelowMinimum).length
+  const uLabel = (unit?: string) => unit === 'piece' ? 'pza' : 'kg'
 
   function openModal(product: StockStatusDto, type: Modal) {
     setSelected(product)
@@ -230,70 +235,14 @@ export function InventoryPage() {
       {tab === 'products' && (
         <div className="flex flex-col gap-5">
 
-          {/* Formulario agregar/editar */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h2 className="text-sm font-medium text-gray-700 mb-4">
-              {editingProduct ? 'Editar producto' : 'Agregar nuevo producto'}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Nombre *</label>
-                <input className="input-base" placeholder="Ej. Chorizo artesanal"
-                  value={productForm.name}
-                  onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Categoría</label>
-                <select className="input-base"
-                  value={productForm.category}
-                  onChange={e => {
-                    setProductForm(f => ({ ...f, category: e.target.value }))
-                    if (e.target.value !== '__custom__') setCustomCategory('')
-                  }}>
-                  {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                  <option value="__custom__">Personalizar</option>
-                </select>
-                {productForm.category === '__custom__' && (
-                  <input className="input-base mt-2" placeholder="Escribe la nueva categoría"
-                    value={customCategory}
-                    onChange={e => setCustomCategory(e.target.value)} />
-                )}
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Precio de venta *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                  <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" step="0.01"
-                    value={productForm.price}
-                    onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))} />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Unidad</label>
-                <select className="input-base"
-                  value={productForm.unit}
-                  onChange={e => setProductForm(f => ({ ...f, unit: e.target.value }))}>
-                  {UNITS.map(u => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
-                </select>
-              </div>
-            </div>
-            {productError && (
-              <p className="text-xs text-red-600 mt-2">{productError}</p>
-            )}
-            <div className="flex gap-2 mt-4">
-              {editingProduct && (
-                <button onClick={cancelEdit} className="btn-secondary">Cancelar</button>
-              )}
-              <button
-                onClick={submitProduct}
-                disabled={createProduct.isPending || updateProduct.isPending}
-                className="px-4 py-2 text-sm text-white rounded-lg font-medium disabled:opacity-40 transition-colors"
-                style={{ backgroundColor: '#6366f1' }}>
-                {createProduct.isPending || updateProduct.isPending
-                  ? 'Guardando...'
-                  : editingProduct ? 'Guardar cambios' : '+ Agregar producto'}
-              </button>
-            </div>
+          {/* Botón abrir modal */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => { cancelEdit(); setShowProductModal(true) }}
+              className="px-4 py-2 text-sm text-white rounded-lg font-medium transition-colors"
+              style={{ backgroundColor: '#6366f1' }}>
+              + Agregar producto
+            </button>
           </div>
 
           {/* Filtros */}
@@ -384,6 +333,101 @@ export function InventoryPage() {
           </div>
         </div>
       )}
+
+          {/* Modal agregar/editar producto */}
+          {showProductModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+              onClick={cancelEdit}>
+              <div className="bg-white rounded-xl w-full max-w-lg flex flex-col"
+                onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                  <span className="text-sm font-medium text-gray-900">
+                    {editingProduct ? 'Editar producto' : 'Nuevo producto'}
+                  </span>
+                  <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+                </div>
+                <div className="p-5 flex flex-col gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="text-xs text-gray-500 block mb-1">Nombre *</label>
+                      <input className="input-base" placeholder="Ej. Chorizo artesanal"
+                        value={productForm.name}
+                        onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">Categoría</label>
+                      <select className="input-base"
+                        value={productForm.category}
+                        onChange={e => {
+                          setProductForm(f => ({ ...f, category: e.target.value }))
+                          if (e.target.value !== '__custom__') setCustomCategory('')
+                        }}>
+                        {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="__custom__">Personalizar</option>
+                      </select>
+                      {productForm.category === '__custom__' && (
+                        <input className="input-base mt-2" placeholder="Escribe la nueva categoría"
+                          value={customCategory}
+                          onChange={e => setCustomCategory(e.target.value)} />
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">Unidad</label>
+                      <select className="input-base"
+                        value={productForm.unit}
+                        onChange={e => setProductForm(f => ({ ...f, unit: e.target.value }))}>
+                        {UNITS.map(u => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">
+                        Precio por {productForm.unit === 'kg' ? 'kg' : 'pieza'} *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                        <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" step="0.01"
+                          value={productForm.price}
+                          onFocus={e => e.target.select()}
+                          onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">Código de barras</label>
+                      <div className="flex gap-2">
+                        <input className="input-base flex-1" placeholder="Ej. 7501234567890"
+                          value={productForm.barcode}
+                          onChange={e => setProductForm(f => ({ ...f, barcode: e.target.value }))} />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const code = '2' + String(Date.now()).slice(-7) + String(Math.floor(Math.random() * 100)).padStart(2, '0')
+                            setProductForm(f => ({ ...f, barcode: code }))
+                          }}
+                          className="px-3 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-300 whitespace-nowrap transition-colors">
+                          Generar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {productError && (
+                    <p className="text-xs text-red-600">{productError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button onClick={cancelEdit} className="btn-secondary flex-1">Cancelar</button>
+                    <button
+                      onClick={submitProduct}
+                      disabled={createProduct.isPending || updateProduct.isPending}
+                      className="flex-1 px-4 py-2 text-sm text-white rounded-lg font-medium disabled:opacity-40 transition-colors"
+                      style={{ backgroundColor: '#6366f1' }}>
+                      {createProduct.isPending || updateProduct.isPending
+                        ? 'Guardando...'
+                        : editingProduct ? 'Guardar cambios' : 'Agregar producto'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Modal confirmación eliminar */}
           {confirmDelete && (() => {
@@ -487,17 +531,17 @@ export function InventoryPage() {
                       <p className="text-xs text-gray-400">{p.category}</p>
                     </td>
                     <td className={`px-4 py-3 text-right ${stockColor}`}>
-                      {p.currentStockKg.toFixed(2)} kg
+                      {p.currentStockKg.toFixed(2)} {uLabel(p.unit)}
                       {p.isBelowMinimum && (
                         <span className="ml-1.5 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">!</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-500">
-                      {p.minimumStockKg > 0 ? `${p.minimumStockKg.toFixed(1)} kg` : '—'}
+                      {p.minimumStockKg > 0 ? `${p.minimumStockKg.toFixed(1)} ${uLabel(p.unit)}` : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">{p.totalSoldLast7Days.toFixed(2)} kg</td>
-                    <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">{p.totalWasteLast7Days.toFixed(2)} kg</td>
-                    <td className="px-4 py-3 text-right text-gray-600 hidden lg:table-cell">{p.averageDailySales.toFixed(2)} kg</td>
+                    <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">{p.totalSoldLast7Days.toFixed(2)} {uLabel(p.unit)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">{p.totalWasteLast7Days.toFixed(2)} {uLabel(p.unit)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 hidden lg:table-cell">{p.averageDailySales.toFixed(2)} {uLabel(p.unit)}</td>
                     <td className="px-4 py-3 text-right">
                       {editingPrice?.productId === p.productId ? (
                         <div className="flex items-center justify-end gap-1">
@@ -550,7 +594,7 @@ export function InventoryPage() {
                           title="Editar precio de venta"
                         >
                           <span className="font-medium">
-                            ${(p.salePrice ?? 0).toFixed(2)}/kg
+                            ${(p.salePrice ?? 0).toFixed(2)}/{uLabel(p.unit)}
                           </span>
                           <svg
                             width="13" height="13" viewBox="0 0 24 24" fill="none"
@@ -660,16 +704,16 @@ export function InventoryPage() {
             </div>
             <div className="modal-body">
               <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
-                Stock actual: <span className="font-medium">{selected.currentStockKg.toFixed(2)} kg</span>
+                Stock actual: <span className="font-medium">{selected.currentStockKg.toFixed(2)} {uLabel(selected.unit)}</span>
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Cantidad (kg)</label>
+                <label className="text-xs text-gray-500 block mb-1">Cantidad ({uLabel(selected.unit)})</label>
                 <input className="input-base" type="number" step="0.1" min="0.1"
                   value={entryForm.quantityKg}
                   onChange={e => setEntryForm(f => ({ ...f, quantityKg: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Costo por kg</label>
+                <label className="text-xs text-gray-500 block mb-1">Costo por {uLabel(selected.unit)}</label>
                 <input className="input-base" type="number" step="0.01" min="0"
                   value={entryForm.costPerKg}
                   onChange={e => setEntryForm(f => ({ ...f, costPerKg: e.target.value }))} />
@@ -689,7 +733,7 @@ export function InventoryPage() {
               {entryForm.quantityKg && (
                 <div className="bg-indigo-50 rounded-lg p-3 text-sm text-indigo-700">
                   Stock resultante: <span className="font-medium">
-                    {(selected.currentStockKg + Number(entryForm.quantityKg)).toFixed(2)} kg
+                    {(selected.currentStockKg + Number(entryForm.quantityKg)).toFixed(2)} {uLabel(selected.unit)}
                   </span>
                 </div>
               )}
@@ -728,11 +772,11 @@ export function InventoryPage() {
           <div className="modal-body">
             <div className="bg-red-50 rounded-lg p-3 text-sm text-red-700 flex justify-between">
               <span>Stock actual</span>
-              <span className="font-medium">{selected.currentStockKg.toFixed(3)} kg</span>
+              <span className="font-medium">{selected.currentStockKg.toFixed(3)} {uLabel(selected.unit)}</span>
             </div>
 
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Cantidad perdida (kg)</label>
+              <label className="text-xs text-gray-500 block mb-1">Cantidad perdida ({uLabel(selected.unit)})</label>
               <input
                 className={`input-base ${wasteError ? 'border-red-300' : ''}`}
                 type="number" step="0.1" min="0.1"
@@ -740,10 +784,9 @@ export function InventoryPage() {
                 value={wasteForm.quantityKg}
                 onChange={e => {
                   setWasteForm(f => ({ ...f, quantityKg: e.target.value }))
-                  // Valida en tiempo real
                   const val = parseFloat(e.target.value)
                   if (val > selected.currentStockKg) {
-                    setWasteError(`Máximo ${selected.currentStockKg.toFixed(3)} kg`)
+                    setWasteError(`Máximo ${selected.currentStockKg.toFixed(3)} ${uLabel(selected.unit)}`)
                   } else {
                     setWasteError('')
                   }
@@ -805,14 +848,14 @@ export function InventoryPage() {
                 Cuando el stock baje de este valor el sistema mostrará una alerta.
               </p>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Mínimo en kg</label>
+                <label className="text-xs text-gray-500 block mb-1">Mínimo en {uLabel(selected.unit)}</label>
                 <input className="input-base" type="number" step="0.5" min="0"
                   value={alertForm.minimumStockKg}
                   onChange={e => setAlertForm({ minimumStockKg: e.target.value })} />
               </div>
               <p className="text-xs text-gray-400">
-                Promedio de venta diaria: {selected.averageDailySales.toFixed(2)} kg/día —
-                un mínimo de {(selected.averageDailySales * 2).toFixed(1)} kg cubre ~2 días.
+                Promedio de venta diaria: {selected.averageDailySales.toFixed(2)} {uLabel(selected.unit)}/día —
+                un mínimo de {(selected.averageDailySales * 2).toFixed(1)} {uLabel(selected.unit)} cubre ~2 días.
               </p>
               <button className="btn-primary"
                 disabled={!alertForm.minimumStockKg || setAlert.isPending}
@@ -850,7 +893,7 @@ export function InventoryPage() {
                       <span className={`text-sm font-medium ${
                         m.quantityKg > 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {m.quantityKg > 0 ? '+' : ''}{m.quantityKg.toFixed(3)} kg
+                        {m.quantityKg > 0 ? '+' : ''}{m.quantityKg.toFixed(3)} {uLabel(selected.unit)}
                       </span>
                       <span className="text-xs text-gray-400 whitespace-nowrap">
                         {new Date(m.date).toLocaleDateString('es-MX', {
