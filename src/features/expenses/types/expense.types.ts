@@ -47,14 +47,15 @@ export const EXPENSE_CATEGORIES = [
 ]
 
 export const RECURRENCE_OPTIONS = [
-  { value: 'None',      label: 'Una sola vez' },
-  { value: 'Weekly',    label: 'Semanal'      },
-  { value: 'Biweekly',  label: 'Quincenal'    },
-  { value: 'Monthly',   label: 'Mensual'      },
-  { value: 'Annual',    label: 'Anual'        },
+  { value: 'None',       label: 'Una sola vez' },
+  { value: 'Weekly',     label: 'Semanal'      },
+  { value: 'Biweekly',   label: 'Quincenal'    },
+  { value: 'Monthly',    label: 'Mensual'      },
+  { value: 'Bimonthly',  label: 'Bimestral'    },
+  { value: 'Annual',     label: 'Anual'        },
 ]
 
 export const RECURRENCE_LABEL: Record<string, string> = {
   None: 'Una sola vez', Weekly: 'Semanal', Biweekly: 'Quincenal',
-  Monthly: 'Mensual', Annual: 'Anual',
+  Monthly: 'Mensual', Bimonthly: 'Bimestral', Annual: 'Anual',
 }

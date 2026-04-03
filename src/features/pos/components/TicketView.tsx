@@ -50,6 +50,7 @@ export function TicketView({ ticket, onNewSale, closeLabel = 'Nueva venta' }: Pr
     .border-b { border-bottom: 1px dashed #e5e7eb; }
     .border-dashed { border-style: dashed; }
     .border-gray-200 { border-color: #e5e7eb; }
+    .logo { width: 80px; height: 80px; object-fit: cover; border-radius: 50%; display: block; margin: 0 auto 4px; }
   </style>
 </head>
 <body>${content.innerHTML}</body>
@@ -64,7 +65,7 @@ export function TicketView({ ticket, onNewSale, closeLabel = 'Nueva venta' }: Pr
     <div className="flex flex-col">
       <div id="ticket-printable" className="p-5 flex flex-col gap-3">
         <div className="text-center border-b border-dashed border-gray-200 pb-3">
-          <p className="font-medium text-gray-900">{ticket.shopName}</p>
+          <img src="/logo.jpg" alt="Carnicería Gradilla" className="logo w-20 h-20 object-cover rounded-full mx-auto mb-1" />
           <p className="text-xs text-gray-400 mt-0.5">Cajero: {ticket.cashierName}</p>
           <p className="text-xs text-gray-400">
             Folio #{ticket.folio} · {issuedAt.toLocaleDateString('es-MX')} {issuedAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
@@ -94,9 +95,6 @@ export function TicketView({ ticket, onNewSale, closeLabel = 'Nueva venta' }: Pr
               <span>Descuento</span><span>−${ticket.discountAmount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>IVA (16%)</span><span>${ticket.taxAmount.toFixed(2)}</span>
-          </div>
           <div className="flex justify-between text-sm font-medium text-gray-900 pt-1">
             <span>Total</span><span>${ticket.total.toFixed(2)}</span>
           </div>

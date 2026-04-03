@@ -24,7 +24,6 @@ interface PosStore {
   resetCart: () => void
   subtotal: () => number
   discountAmount: () => number
-  taxAmount: () => number
   total: () => number
   updateItemPrice: (productId: string, newPrice: number) => void
 
@@ -111,18 +110,14 @@ export const usePosStore = create<PosStore>()(
         return subtotal() * (discountPercent / 100)
       },
 
-      taxAmount: () => {
-        const { subtotal, discountAmount } = get()
-        return (subtotal() - discountAmount()) * 0.16
-      },
       clientColor: () => {
         const s = get()
         const isDefault = s.selectedCustomer?.id === s.defaultCustomer?.id
         return isDefault ? '#6366f1' : (s.selectedCustomer as any)?.color ?? '#6366f1'
       },
       total: () => {
-        const { subtotal, discountAmount, taxAmount } = get()
-        return subtotal() - discountAmount() + taxAmount()
+        const { subtotal, discountAmount } = get()
+        return subtotal() - discountAmount()
       },
 
       // Session

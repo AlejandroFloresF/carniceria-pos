@@ -1,7 +1,7 @@
 import { usePosStore } from '@/store/posStore'
 
 export function OrderSummary() {
-  const { subtotal, discountAmount, taxAmount, total, discountPercent, setDiscount } = usePosStore()
+  const { subtotal, discountAmount, total, discountPercent, setDiscount } = usePosStore()
 
   return (
     <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
@@ -34,10 +34,6 @@ export function OrderSummary() {
             <span>−${discountAmount().toFixed(2)}</span>
           </div>
         )}
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>IVA (16%)</span>
-          <span>${taxAmount().toFixed(2)}</span>
-        </div>
         <div className="flex justify-between text-sm font-medium text-gray-900 pt-1 border-t border-gray-100">
           <span>Total</span>
           <span>${total().toFixed(2)}</span>

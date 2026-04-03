@@ -51,7 +51,6 @@ export interface TicketDto {
   items:         TicketItemDto[]
   subtotal:      number
   discountAmount:number
-  taxAmount:     number
   total:         number
   cashReceived:  number
   change:        number

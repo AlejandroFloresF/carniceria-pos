@@ -64,6 +64,9 @@ export default function App() {
 
       {/* Nav */}
       <nav className="flex items-center px-4 py-2 bg-white border-b border-gray-100 shrink-0 gap-2">
+        {/* Logo */}
+        <img src="/logo.jpg" alt="Carnicería Gradilla" className="h-8 w-8 rounded-full object-cover shrink-0" />
+
         {/* tabs — overflow scrolls horizontally but never clips the bell */}
         <div className="flex flex-wrap items-center gap-1 flex-1 overflow-x-auto min-w-0">
           {visiblePages.map(item => (
