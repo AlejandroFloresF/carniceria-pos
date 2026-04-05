@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { fmt } from '@/lib/fmt'
 import { useCustomers } from '../pos/hooks/useCustomers'
 import { useCreateCustomer, useDeleteCustomer, useUpdateCustomer } from '../pos/hooks/useCreateCustomer'
 import { useCustomerDetail, useMarkDebtPaid, useSetCustomerPrice, useDeleteCustomerPrice } from '../pos/hooks/useCustomerDebts'
 import { useProducts } from '../pos/hooks/useProducts'
 import { useTicketByOrder } from '../pos/hooks/useTicket'
 import { TicketView } from '../pos/components/TicketView'
+import { CustomerOrdersTab } from './CustomerOrdersTab'
 import type { Customer, CustomerDebt, TicketDto } from '../pos/types/pos.types'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -159,7 +161,7 @@ function DebtPaymentModal({
           <div className="rounded-lg px-4 py-3 text-center"
             style={{ backgroundColor: `${color}10`, border: `1px solid ${color}25` }}>
             <p className="text-xs text-gray-500 mb-1">Monto a cobrar</p>
-            <p className="text-2xl font-semibold" style={{ color }}>${debt.amount.toFixed(2)}</p>
+            <p className="text-2xl font-semibold" style={{ color }}>${fmt(debt.amount)}</p>
             <p className="text-xs text-gray-400 mt-1">
               Folio #{debt.orderFolio} · {new Date(debt.createdAt).toLocaleDateString('es-MX')}
             </p>
@@ -184,7 +186,7 @@ function DebtPaymentModal({
                   <span className="text-gray-700">{item.productName}
                     <span className="text-gray-400 ml-1">({item.quantity} {item.unit})</span>
                   </span>
-                  <span className="text-gray-600 font-medium">${item.total.toFixed(2)}</span>
+                  <span className="text-gray-600 font-medium">${fmt(item.total)}</span>
                 </div>
               ))}
             </div>
@@ -220,7 +222,7 @@ function DebtPaymentModal({
                 {quickAmounts.map(a => (
                   <button key={a} onClick={() => setCashReceived(String(a))}
                     className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50">
-                    ${a.toFixed(0)}
+                    ${fmt(a, 0)}
                   </button>
                 ))}
               </div>
@@ -233,8 +235,8 @@ function DebtPaymentModal({
                   </p>
                   <p className={`text-xl font-medium ${change >= 0 ? 'text-green-800' : 'text-red-800'}`}>
                     {change >= 0
-                      ? `$${change.toFixed(0)}`
-                      : `$${Math.abs(received - debt.amount).toFixed(2)} faltantes`}
+                      ? `$${fmt(change, 0)}`
+                      : `$${fmt(Math.abs(received - debt.amount))} faltantes`}
                   </p>
                 </div>
               )}
@@ -269,7 +271,7 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
   const setPrice    = useSetCustomerPrice()
   const deletePrice = useDeleteCustomerPrice()
   const { data: products = [] } = useProducts('')
-  const [tab, setTab]             = useState<'debts'|'prices'>('debts')
+  const [tab, setTab]             = useState<'debts'|'prices'|'orders'>('debts')
   const [editPrice, setEditPrice] = useState<{ productId: string; value: string }|null>(null)
   const [pendingPayment, setPendingPayment] = useState<CustomerDebt | null>(null)
 
@@ -280,7 +282,7 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
 
   return (
     <>
-    <div className="modal-overlay">
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal max-h-[90vh] overflow-hidden flex flex-col" style={{ maxWidth: '580px' }}>
 
         {/* Header */}
@@ -291,7 +293,7 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
               <span className="modal-title">{customer.name}</span>
               {liveDebt > 0 && (
                 <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
-                  Debe ${liveDebt.toFixed(2)}
+                  Debe ${fmt(liveDebt)}
                 </span>
               )}
             </div>
@@ -316,7 +318,10 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
           {([
             { id: 'debts',  label: `Deudas (${detail?.pendingDebts?.length ?? 0})` },
             { id: 'prices', label: 'Precios especiales' },
-          ] as { id: 'debts'|'prices'; label: string }[]).map(t => (
+            ...(customer.name !== 'Público General'
+              ? [{ id: 'orders', label: 'Pedidos' }]
+              : []),
+          ] as { id: 'debts'|'prices'|'orders'; label: string }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className="px-5 py-3 text-sm transition-colors border-b-2"
               style={tab === t.id
@@ -346,7 +351,7 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
                     style={{ backgroundColor: `${color}10`, border: `1px solid ${color}25` }}>
                     <span className="text-sm" style={{ color }}>Total pendiente</span>
                     <span className="text-sm font-medium" style={{ color }}>
-                      ${detail.pendingDebts.reduce((s,d) => s + d.amount, 0).toFixed(2)}
+                      ${fmt(detail.pendingDebts.reduce((s,d) => s + d.amount, 0))}
                     </span>
                   </div>
 
@@ -354,7 +359,7 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
                     <div key={d.id} className="flex items-start gap-3 p-3 border border-gray-100 rounded-lg">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-gray-900">${d.amount.toFixed(2)}</span>
+                          <span className="text-sm font-medium text-gray-900">${fmt(d.amount)}</span>
                           <span className="text-xs px-2 py-0.5 rounded-full"
                             style={{ backgroundColor: `${color}15`, color }}>
                             #{d.orderFolio}
@@ -391,6 +396,9 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
               )}
             </div>
 
+          ) : tab === 'orders' ? (
+            <CustomerOrdersTab customer={customer} />
+
           ) : (
             <div className="flex flex-col gap-1">
               <p className="text-xs text-gray-400 mb-3">
@@ -405,7 +413,7 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
                   <div key={p.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-800 truncate">{p.name}</p>
-                      <p className="text-xs text-gray-400">${generalPrice.toFixed(2)}/kg general</p>
+                      <p className="text-xs text-gray-400">${fmt(generalPrice)}/kg general</p>
                     </div>
 
                     {isEditing ? (
@@ -443,11 +451,11 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="text-right">
                           <span className="text-sm font-medium" style={{ color }}>
-                            ${customPrice.customPrice.toFixed(2)}/kg
+                            ${fmt(customPrice.customPrice)}/kg
                           </span>
                           {generalPrice > 0 && (() => {
                             const diff = (1 - customPrice.customPrice / generalPrice) * 100
-                            const abs  = Math.abs(diff).toFixed(0)
+                            const abs  = fmt(Math.abs(diff), 0)
                             return diff !== 0 ? (
                               <p className="text-xs" style={{ color: diff > 0 ? color : '#f59e0b' }}>
                                 {diff > 0 ? `${abs}% menos` : `${abs}% más`}
@@ -596,7 +604,7 @@ export function CustomersPage() {
               {customers.filter(c => c.totalDebt > 0).length !== 1 ? 's' : ''} con saldo pendiente
             </span>
           </div>
-          <span className="text-sm font-medium text-orange-800">${totalDebtAll.toFixed(2)}</span>
+          <span className="text-sm font-medium text-orange-800">${fmt(totalDebtAll)}</span>
         </div>
       )}
 
@@ -666,7 +674,7 @@ export function CustomersPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {c.totalDebt > 0 ? (
-                          <span className="text-sm font-medium text-red-600">${c.totalDebt.toFixed(2)}</span>
+                          <span className="text-sm font-medium text-red-600">${fmt(c.totalDebt)}</span>
                         ) : (
                           <span className="text-xs text-gray-300">—</span>
                         )}
@@ -940,7 +948,7 @@ export function CustomersPage() {
                   <span className="text-amber-500 shrink-0">⚠</span>
                   <p className="text-xs text-amber-700">
                     Este cliente tiene una deuda pendiente de{' '}
-                    <span className="font-medium">${deletingCustomer.totalDebt.toFixed(2)}</span>.
+                    <span className="font-medium">${fmt(deletingCustomer.totalDebt)}</span>.
                     Al eliminarlo la deuda quedará sin asignar.
                   </p>
                 </div>

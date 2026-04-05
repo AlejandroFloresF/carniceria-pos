@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDashboard } from '../pos/hooks/useDashboard'
 import { usePosStore } from '@/store/posStore'
+import { fmt } from '@/lib/fmt'
 
 type RangePreset = 'today' | 'week' | 'month' | 'custom' | 'session'
 
@@ -107,13 +108,13 @@ export function DashboardPage() {
           {/* KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Ventas totales',   value: `$${data.totalSales.toFixed(2)}`,    sub: `${data.totalOrders} tickets`, color: 'text-gray-900' },
-              { label: 'Ticket promedio',  value: `$${data.averageTicket.toFixed(2)}`, sub: 'por venta', color: 'text-gray-900' },
-              { label: 'Descuentos',       value: `$${data.totalDiscounts.toFixed(2)}`,sub: 'aplicados', color: 'text-red-600' },
+              { label: 'Ventas totales',   value: `$${fmt(data.totalSales)}`,    sub: `${data.totalOrders} tickets`, color: 'text-gray-900' },
+              { label: 'Ticket promedio',  value: `$${fmt(data.averageTicket)}`, sub: 'por venta', color: 'text-gray-900' },
+              { label: 'Descuentos',       value: `$${fmt(data.totalDiscounts)}`,sub: 'aplicados', color: 'text-red-600' },
               {
                 label: 'vs período anterior',
                 value: `${data.comparison.changePercent > 0 ? '+' : ''}${data.comparison.changePercent}%`,
-                sub: `anterior: $${data.comparison.previousTotal.toFixed(2)}`,
+                sub: `anterior: $${fmt(data.comparison.previousTotal)}`,
                 color: data.comparison.changePercent >= 0 ? 'text-green-600' : 'text-red-600'
               },
             ].map(k => (
@@ -140,7 +141,7 @@ export function DashboardPage() {
                 const base = items.reduce((s, m) => s + m.value, 0)
                 return items.map(m => (
                   <div key={m.label} className="text-center">
-                    <p className="text-lg font-medium text-gray-900">${m.value.toFixed(2)}</p>
+                    <p className="text-lg font-medium text-gray-900">${fmt(m.value)}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{m.label}</p>
                     <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all"
@@ -156,7 +157,7 @@ export function DashboardPage() {
               return debtPay > 0 ? (
                 <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                   <span className="text-xs text-gray-500">Cobros de deuda recibidos</span>
-                  <span className="text-sm font-medium text-purple-700">${debtPay.toFixed(2)}</span>
+                  <span className="text-sm font-medium text-purple-700">${fmt(debtPay)}</span>
                 </div>
               ) : null
             })()}
@@ -173,7 +174,7 @@ export function DashboardPage() {
                     <div className="flex-1">
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-gray-800 font-medium">{p.productName}</span>
-                        <span className="text-gray-900">${p.totalRevenue.toFixed(2)}</span>
+                        <span className="text-gray-900">${fmt(p.totalRevenue)}</span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400">
                         <span>{p.totalKg} kg vendidos</span>
@@ -208,7 +209,7 @@ export function DashboardPage() {
                       <div className="flex-1">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium text-gray-800">{c.customerName}</span>
-                          <span className="text-gray-900">${c.totalSpent.toFixed(2)}</span>
+                          <span className="text-gray-900">${fmt(c.totalSpent)}</span>
                         </div>
                         <div className="flex justify-between text-xs text-gray-400 mt-0.5">
                           <span>{c.orderCount} compras</span>
@@ -249,7 +250,7 @@ export function DashboardPage() {
                                           bg-gray-900 text-white text-xs rounded px-2 py-1 
                                           whitespace-nowrap opacity-0 group-hover:opacity-100 
                                           transition-opacity pointer-events-none z-10">
-                            ${d.total.toFixed(0)} · {d.orderCount} ventas
+                            ${fmt(d.total, 0)} · {d.orderCount} ventas
                           </div>
 
                           {/* Barra */}
@@ -298,7 +299,7 @@ export function DashboardPage() {
                       <span className="text-xs text-gray-400">Entre semana</span>
                     </div>
                     <div className="ml-auto text-xs text-gray-400">
-                      Máximo: ${Math.max(...data.salesByDay.map(x => x.total)).toFixed(0)}
+                      Máximo: ${fmt(Math.max(...data.salesByDay.map(x => x.total)), 0)}
                     </div>
                   </div>
                 </div>

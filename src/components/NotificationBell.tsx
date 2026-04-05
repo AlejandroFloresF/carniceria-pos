@@ -74,6 +74,11 @@ export function NotificationBell({ cashierName, onNavigate }: Props) {
 
   function handleItem(item: ExpenseNotificationItem) {
     setOpen(false)
+    if (item.referenceId) {
+      const next = new Set(dismissed).add(item.referenceId)
+      setDismissed(next)
+      saveDismissed(next)
+    }
     onNavigate(item.referenceId)
   }
 

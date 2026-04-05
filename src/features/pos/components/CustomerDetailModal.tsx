@@ -3,6 +3,7 @@ import { useCustomerDetail, useMarkDebtPaid, useSetCustomerPrice, useDeleteCusto
 import { useProducts } from '../hooks/useProducts'
 import { useTicketByOrder } from '../hooks/useTicket'
 import { TicketView } from './TicketView'
+import { fmt } from '@/lib/fmt'
 import type { Customer, CustomerDebt } from '../types/pos.types'
 
 interface Props {
@@ -110,7 +111,7 @@ function DebtPaymentModal({
               style={{ backgroundColor: `${color}10`, border: `1px solid ${color}25` }}
             >
               <p className="text-xs text-gray-500 mb-1">Monto pendiente</p>
-              <p className="text-2xl font-semibold" style={{ color }}>${debt.amount.toFixed(2)}</p>
+              <p className="text-2xl font-semibold" style={{ color }}>${fmt(debt.amount)}</p>
               <p className="text-xs text-gray-400 mt-1">
                 Folio #{debt.orderFolio} · {new Date(debt.createdAt).toLocaleDateString('es-MX')}
               </p>
@@ -136,7 +137,7 @@ function DebtPaymentModal({
                       {item.productName}
                       <span className="text-gray-400 ml-1">({item.quantity} {item.unit})</span>
                     </span>
-                    <span className="text-gray-600 font-medium">${item.total.toFixed(2)}</span>
+                    <span className="text-gray-600 font-medium">${fmt(item.total)}</span>
                   </div>
                 ))}
               </div>
@@ -209,7 +210,7 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
                   <span className="modal-title">{customer.name}</span>
                   {liveDebt > 0 && (
                     <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
-                      Debe ${liveDebt.toFixed(2)}
+                      Debe ${fmt(liveDebt)}
                     </span>
                   )}
                 </div>
@@ -299,7 +300,7 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
                     >
                       <span className="text-sm font-medium" style={{ color }}>Total pendiente</span>
                       <span className="text-sm font-medium" style={{ color }}>
-                        ${detail.pendingDebts.reduce((s, d) => s + d.amount, 0).toFixed(2)}
+                        ${fmt(detail.pendingDebts.reduce((s, d) => s + d.amount, 0))}
                       </span>
                     </div>
 
@@ -313,7 +314,7 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
                           {/* Monto + folio clickeable */}
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium text-gray-900">
-                              ${d.amount.toFixed(2)}
+                              ${fmt(d.amount)}
                             </span>
                             <button
                               onClick={() => setViewingOrderId(d.orderId)}
@@ -396,7 +397,7 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-800 truncate font-medium">{p.name}</p>
                         <p className="text-xs text-gray-400">
-                          ${generalPrice.toFixed(2)}/kg precio general
+                          ${fmt(generalPrice)}/kg precio general
                         </p>
                       </div>
 
@@ -455,7 +456,7 @@ export function CustomerDetailModal({ customer, onClose }: Props) {
                         <div className="flex items-center gap-2 shrink-0">
                           <div className="text-right">
                             <span className="text-sm font-medium" style={{ color }}>
-                              ${customPrice.customPrice.toFixed(2)}/kg
+                              ${fmt(customPrice.customPrice)}/kg
                             </span>
                             {generalPrice > 0 && (() => {
                               const diff = (1 - customPrice.customPrice / generalPrice) * 100

@@ -1,4 +1,5 @@
 import type { TicketDto } from '../types/pos.types'
+import { fmt } from '@/lib/fmt'
 
 const METHOD_LABELS: Record<string, string> = { Cash: 'Efectivo', Card: 'Tarjeta', Transfer: 'Transferencia', PayLater: 'A crédito' }
 
@@ -77,10 +78,10 @@ export function TicketView({ ticket, onNewSale, closeLabel = 'Nueva venta' }: Pr
             <div key={i}>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-900">{item.productName}</span>
-                <span className="text-gray-900">${item.total.toFixed(2)}</span>
+                <span className="text-gray-900">${fmt(item.total)}</span>
               </div>
               <p className="text-xs text-gray-400">
-                {item.quantity} {item.unit} × ${item.unitPrice.toFixed(2)}/{item.unit}
+                {fmt(item.quantity, 3)} {item.unit} × ${fmt(item.unitPrice)}/{item.unit}
               </p>
             </div>
           ))}
@@ -88,15 +89,15 @@ export function TicketView({ ticket, onNewSale, closeLabel = 'Nueva venta' }: Pr
 
         <div className="border-t border-dashed border-gray-200 pt-3 flex flex-col gap-1">
           <div className="flex justify-between text-xs text-gray-500">
-            <span>Subtotal</span><span>${ticket.subtotal.toFixed(2)}</span>
+            <span>Subtotal</span><span>${fmt(ticket.subtotal)}</span>
           </div>
           {ticket.discountAmount > 0 && (
             <div className="flex justify-between text-xs text-green-600">
-              <span>Descuento</span><span>−${ticket.discountAmount.toFixed(2)}</span>
+              <span>Descuento</span><span>−${fmt(ticket.discountAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm font-medium text-gray-900 pt-1">
-            <span>Total</span><span>${ticket.total.toFixed(2)}</span>
+            <span>Total</span><span>${fmt(ticket.total)}</span>
           </div>
           {ticket.paymentMethod === 'PayLater' ? (
             <>
@@ -107,24 +108,35 @@ export function TicketView({ ticket, onNewSale, closeLabel = 'Nueva venta' }: Pr
               {ticket.cashReceived > 0 && (
                 <div className="flex justify-between text-xs text-green-700">
                   <span>Anticipo recibido</span>
-                  <span>${ticket.cashReceived.toFixed(2)}</span>
+                  <span>${fmt(ticket.cashReceived)}</span>
                 </div>
               )}
               <div className="flex justify-between text-xs font-medium text-red-600">
                 <span>Queda debiendo</span>
-                <span>${(ticket.total - ticket.cashReceived).toFixed(2)}</span>
+                <span>${fmt(ticket.total - ticket.cashReceived)}</span>
+              </div>
+            </>
+          ) : ticket.secondaryPaymentMethod ? (
+            <>
+              <div className="flex justify-between text-xs text-gray-500 pt-1">
+                <span>Efectivo</span>
+                <span>${fmt(ticket.cashReceived)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>{METHOD_LABELS[ticket.secondaryPaymentMethod] ?? ticket.secondaryPaymentMethod}</span>
+                <span>${fmt(ticket.secondaryAmount)}</span>
               </div>
             </>
           ) : (
             <>
               <div className="flex justify-between text-xs text-gray-500 pt-1">
                 <span>Pago ({METHOD_LABELS[ticket.paymentMethod] ?? ticket.paymentMethod})</span>
-                <span>${ticket.cashReceived.toFixed(2)}</span>
+                <span>${fmt(ticket.cashReceived)}</span>
               </div>
               {ticket.paymentMethod === 'Cash' && change > 0 && (
                 <div className="flex justify-between text-xs text-green-600">
                   <span>Cambio</span>
-                  <span>${Math.floor(change).toFixed(0)}</span>
+                  <span>${fmt(Math.floor(change), 0)}</span>
                 </div>
               )}
             </>

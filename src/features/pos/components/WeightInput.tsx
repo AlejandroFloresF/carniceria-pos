@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePosStore } from '@/store/posStore'
+import { fmt } from '@/lib/fmt'
 
 interface Props {
   product: any
@@ -19,7 +20,7 @@ export function WeightInput({ product, onProductAdded }: Props) {
 
   function handleAdd() {
     if (!qty || parsedQty <= 0) { setError('Ingresa una cantidad válida'); return }
-    if (parsedQty > availableStock) { setError(`Máx ${availableStock.toFixed(3)} kg`); return }
+    if (parsedQty > availableStock) { setError(`Máx ${fmt(availableStock, 3)} kg`); return }
     setError('')
     addItem(product, parsedQty)
     selectProduct(null)
@@ -34,7 +35,7 @@ export function WeightInput({ product, onProductAdded }: Props) {
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
         <div>
           <p className="text-sm font-medium text-gray-900">{product.name}</p>
-          <p className="text-xs text-gray-500">${effectivePrice.toFixed(2)}/kg</p>
+          <p className="text-xs text-gray-500">${fmt(effectivePrice)}/kg</p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -44,7 +45,7 @@ export function WeightInput({ product, onProductAdded }: Props) {
                 ? 'bg-amber-100 text-amber-700'
                 : 'bg-green-100 text-green-700'
           }`}>
-            {availableStock <= 0 ? 'Sin stock' : `${availableStock.toFixed(2)} kg disp.`}
+            {availableStock <= 0 ? 'Sin stock' : `${fmt(availableStock)} kg disp.`}
           </span>
           <button
             onClick={() => { selectProduct(null); setError('') }}
@@ -81,7 +82,7 @@ export function WeightInput({ product, onProductAdded }: Props) {
               if (match) {
                 setQty(val)
                 const p = parseFloat(val)
-                setError(p > availableStock ? `Máx ${availableStock.toFixed(3)} kg` : '')
+                setError(p > availableStock ? `Máx ${fmt(availableStock, 3)} kg` : '')
               }
             }}
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
@@ -93,8 +94,8 @@ export function WeightInput({ product, onProductAdded }: Props) {
         {/* Preview total */}
         {qty && parsedQty > 0 && !error && (
           <p className="text-xs text-gray-400 text-center mb-2">
-            {parsedQty.toFixed(3)} kg × ${effectivePrice.toFixed(2)} =
-            <span className="font-medium text-gray-700 ml-1">${lineTotal.toFixed(2)}</span>
+            {fmt(parsedQty, 3)} kg × ${fmt(effectivePrice)} =
+            <span className="font-medium text-gray-700 ml-1">${fmt(lineTotal)}</span>
           </p>
         )}
 

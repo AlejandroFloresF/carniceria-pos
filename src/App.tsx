@@ -10,6 +10,7 @@ import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { ReportsPage } from './features/reports/ReportsPage'
 import { GastosPage } from './features/expenses/GastosPage'
 import { NotificationBell } from './components/NotificationBell'
+import { useStockShortageAlerts } from '@/features/pos/hooks/useCustomerOrders'
 
 type Page = 'pos' | 'dashboard' | 'customers' | 'inventory' | 'reports' | 'gastos'
 
@@ -29,6 +30,7 @@ export default function App() {
 
   const [page, setPage] = useState<Page>(() => adminLoggedIn ? 'dashboard' : 'pos')
   const [focusExpenseId, setFocusExpenseId] = useState<string | undefined>()
+  const { data: stockAlerts = [] } = useStockShortageAlerts()
 
   // Sin sesión de cajero y sin admin → pantalla de inicio de turno
   if (!session && !adminLoggedIn) return <OpenSessionModal />
@@ -103,6 +105,29 @@ export default function App() {
           )}
         </div>
       </nav>
+
+      {/* Stock shortage alert — polled every 5 min */}
+      {stockAlerts.length > 0 && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center gap-2 shrink-0">
+          <span className="text-red-500 text-sm shrink-0">⚠</span>
+          <p className="text-xs text-red-800 flex-1 min-w-0">
+            <span className="font-medium">Stock insuficiente para pedidos próximos: </span>
+            {stockAlerts.map((a, i) => (
+              <span key={a.orderId}>
+                {i > 0 && ' · '}
+                <button
+                  className="underline hover:text-red-900"
+                  onClick={() => setPage('customers')}>
+                  {a.customerName}
+                </button>
+                {' ('}
+                {a.shortageItems.map(s => s.productName).join(', ')}
+                {')'}
+              </span>
+            ))}
+          </p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         {activePage === 'pos' && (

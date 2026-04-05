@@ -1,4 +1,5 @@
 import { usePosStore } from '@/store/posStore'
+import { fmt } from '@/lib/fmt'
 
 export function OrderSummary() {
   const { subtotal, discountAmount, total, discountPercent, setDiscount } = usePosStore()
@@ -26,17 +27,17 @@ export function OrderSummary() {
       <div className="space-y-1">
         <div className="flex justify-between text-xs text-gray-500">
           <span>Subtotal</span>
-          <span>${subtotal().toFixed(2)}</span>
+          <span>${fmt(subtotal())}</span>
         </div>
         {discountPercent > 0 && (
           <div className="flex justify-between text-xs text-green-600">
             <span>Descuento ({discountPercent}%)</span>
-            <span>−${discountAmount().toFixed(2)}</span>
+            <span>−${fmt(discountAmount())}</span>
           </div>
         )}
         <div className="flex justify-between text-sm font-medium text-gray-900 pt-1 border-t border-gray-100">
           <span>Total</span>
-          <span>${total().toFixed(2)}</span>
+          <span>${fmt(total())}</span>
         </div>
       </div>
     </div>

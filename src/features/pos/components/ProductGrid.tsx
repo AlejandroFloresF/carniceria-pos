@@ -3,6 +3,7 @@ import { useProducts } from '../hooks/useProducts'
 import { usePosStore } from '@/store/posStore'
 import { CategoryTabs } from './CategoryTabs'
 import { WeightInput } from './WeightInput'
+import { fmt } from '@/lib/fmt'
 interface Props {
   onProductAdded?: () => void
 }
@@ -61,11 +62,11 @@ export function ProductGrid({ onProductAdded }: Props) {
                   <span className={`text-xs font-medium ${
                     hasCustomPrice ? 'text-indigo-600' : 'text-gray-500'
                   }`}>
-                    ${displayPrice.toFixed(2)}
+                    ${fmt(displayPrice)}
                   </span>
                   {hasCustomPrice && (
                     <span className="ml-1 text-xs text-gray-400 line-through">
-                      ${product.generalPrice?.toFixed(2)}
+                      ${fmt(product.generalPrice ?? 0)}
                     </span>
                   )}
                 </div>

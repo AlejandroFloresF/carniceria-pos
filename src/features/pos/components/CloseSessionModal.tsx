@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { usePosStore } from '@/store/posStore'
 import { useCloseSession } from '../hooks/useCloseSession'
 import { useSessionSummary } from '../hooks/useSessionSummary'
+import { fmt } from '@/lib/fmt'
 
 interface Props { onClose: () => void }
 
@@ -46,10 +47,10 @@ export function CloseSessionModal({ onClose }: Props) {
             <>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: 'Ventas totales',    value: `$${summary.totalSales.toFixed(2)}`,                        sub: `${summary.totalOrders} tickets` },
-                  { label: 'Efectivo en caja',  value: `$${summary.totalCash.toFixed(2)}`,                         sub: 'ventas + anticipos + cobros' },
-                  { label: 'Tarjeta / transf.', value: `$${(summary.totalCard + summary.totalTransfer).toFixed(2)}`, sub: '' },
-                  { label: 'Descuentos',        value: `$${summary.totalDiscounts.toFixed(2)}`,                    sub: '' },
+                  { label: 'Ventas totales',    value: `$${fmt(summary.totalSales)}`,                        sub: `${summary.totalOrders} tickets` },
+                  { label: 'Efectivo en caja',  value: `$${fmt(summary.totalCash)}`,                         sub: 'ventas + anticipos + cobros' },
+                  { label: 'Tarjeta / transf.', value: `$${fmt(summary.totalCard + summary.totalTransfer)}`, sub: '' },
+                  { label: 'Descuentos',        value: `$${fmt(summary.totalDiscounts)}`,                    sub: '' },
                 ].map(m => (
                   <div key={m.label} className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-500">{m.label}</p>
@@ -61,7 +62,13 @@ export function CloseSessionModal({ onClose }: Props) {
               {summary.totalDebtPayments > 0 && (
                 <div className="flex items-center justify-between text-sm bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
                   <span className="text-purple-700">Cobros de deuda recibidos</span>
-                  <span className="font-medium text-purple-800">${summary.totalDebtPayments.toFixed(2)}</span>
+                  <span className="font-medium text-purple-800">${fmt(summary.totalDebtPayments)}</span>
+                </div>
+              )}
+              {summary.totalExpenses > 0 && (
+                <div className="flex items-center justify-between text-sm bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                  <span className="text-orange-700">Gastos aprobados (salida de caja)</span>
+                  <span className="font-medium text-orange-800">− ${fmt(summary.totalExpenses)}</span>
                 </div>
               )}
             </>
@@ -74,7 +81,7 @@ export function CloseSessionModal({ onClose }: Props) {
               type="number"
               step={0.01}
               min={0}
-              placeholder={`${expectedCash.toFixed(2)}`}
+              placeholder={`${fmt(expectedCash)}`}
               value={closingCash}
               onFocus={e => e.target.select()}
               onChange={e => setClosingCash(e.target.value)}
@@ -84,9 +91,9 @@ export function CloseSessionModal({ onClose }: Props) {
           <div className={`rounded-lg p-3 border flex justify-between text-sm ${
             diff === 0 ? 'bg-green-50 border-green-200' : diff > 0 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
           }`}>
-            <span className="text-gray-600">Diferencia vs esperado (${expectedCash.toFixed(2)})</span>
+            <span className="text-gray-600">Diferencia vs esperado (${fmt(expectedCash)})</span>
             <span className={`font-medium ${diff === 0 ? 'text-green-700' : diff > 0 ? 'text-amber-700' : 'text-red-700'}`}>
-              {diff === 0 ? 'Cuadrado' : `${diff > 0 ? '+' : ''}$${diff.toFixed(2)}`}
+              {diff === 0 ? 'Cuadrado' : `${diff > 0 ? '+' : ''}$${fmt(diff)}`}
             </span>
           </div>
 

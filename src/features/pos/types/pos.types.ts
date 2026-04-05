@@ -41,20 +41,22 @@ export interface TicketItemDto {
 }
 
 export interface TicketDto {
-  id:            string
-  folio:         string
-  orderId:       string
-  issuedAt:      string
-  cashierName:   string
-  shopName:      string
-  customerName:  string      // ← agrega, lo usa TicketView
-  items:         TicketItemDto[]
-  subtotal:      number
-  discountAmount:number
-  total:         number
-  cashReceived:  number
-  change:        number
-  paymentMethod: string      // ← string en lugar de PaymentMethod para incluir PayLater
+  id:                     string
+  folio:                  string
+  orderId:                string
+  issuedAt:               string
+  cashierName:            string
+  shopName:               string
+  customerName:           string
+  items:                  TicketItemDto[]
+  subtotal:               number
+  discountAmount:         number
+  total:                  number
+  cashReceived:           number
+  change:                 number
+  paymentMethod:          string
+  secondaryPaymentMethod: string | null
+  secondaryAmount:        number
 }
 
 export interface CashierSessionDto {
@@ -78,6 +80,7 @@ export interface SessionSummaryDto {
   openingCash:       number
   expectedCash:      number
   totalDebtPayments: number
+  totalExpenses:     number
 }
 
 export interface Customer {
@@ -114,6 +117,43 @@ export interface CustomerDetail extends Customer {
   totalDebt:    number         // ← sobrescribe el de Customer para que sea reactivo
   pendingDebts: CustomerDebt[]
   customPrices: CustomerProductPrice[]
+}
+
+// ── Pedidos de clientes ───────────────────────────────────────────────────────
+
+export interface CustomerOrderItem {
+  productId:   string
+  productName: string
+  quantityKg:  number
+}
+
+export interface CustomerOrder {
+  id:               string
+  customerId:       string
+  customerName:     string
+  recurrence:       string
+  nextDeliveryDate: string
+  items:            CustomerOrderItem[]
+  notes:            string | null
+  isActive:         boolean
+  isUpcoming:       boolean
+  hasStockShortage: boolean
+}
+
+export interface StockShortageItem {
+  productId:   string
+  productName: string
+  requiredKg:  number
+  availableKg: number
+}
+
+export interface StockShortageOrder {
+  orderId:          string
+  customerId:       string
+  customerName:     string
+  nextDeliveryDate: string
+  recurrence:       string
+  shortageItems:    StockShortageItem[]
 }
 
 export interface ProductWithPrice {

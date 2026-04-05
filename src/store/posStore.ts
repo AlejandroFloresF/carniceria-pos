@@ -7,6 +7,7 @@ const CART_DEFAULTS = {
   discountPercent: 0,
   selectedProduct: null as Product | null,
   selectedCustomer: null as Customer | null,
+  loadedOrderId: null as string | null,   // tracks which customer order is loaded
 }
 
 interface PosStore {
@@ -20,7 +21,9 @@ interface PosStore {
   updateQty: (productId: string, qty: number) => void
   setDiscount: (pct: number) => void
   selectProduct: (p: Product | null) => void
+  loadedOrderId: string | null
   setCustomer: (c: Customer | null) => void
+  setLoadedOrder: (id: string | null) => void
   resetCart: () => void
   subtotal: () => number
   discountAmount: () => number
@@ -73,6 +76,7 @@ export const usePosStore = create<PosStore>()(
 
       setDiscount: pct => set({ discountPercent: Math.min(100, Math.max(0, pct)) }),
       selectProduct: p => set({ selectedProduct: p }),
+      setLoadedOrder: id => set({ loadedOrderId: id }),
 
       setCustomer: (customer) => set({
         selectedCustomer: customer,
@@ -99,6 +103,7 @@ export const usePosStore = create<PosStore>()(
           ...CART_DEFAULTS,
           selectedCustomer: s.defaultCustomer,
           discountPercent: s.defaultCustomer?.discountPercent ?? 0,
+          loadedOrderId: null,
         })),
 
       subtotal: () =>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { usePosStore } from '@/store/posStore'
+import { fmt } from '@/lib/fmt'
 import {
   useScheduledExpenses, useExpenseRequests, useCreateScheduledExpense,
   useUpdateScheduledExpense, useToggleScheduledExpense, useDeleteScheduledExpense,
@@ -130,7 +131,7 @@ function AdminView({ focusRequestId, onClearFocus }: Props) {
             <span className="font-semibold">{successBanner.approved ? 'Pago aprobado' : 'Solicitud denegada'}: </span>
             {successBanner.description}
             {successBanner.approved && (
-              <span className="ml-1 text-green-700 font-semibold">${successBanner.amount.toFixed(2)} descontado de caja</span>
+              <span className="ml-1 text-green-700 font-semibold">${fmt(successBanner.amount)} descontado de caja</span>
             )}
           </div>
         </div>
@@ -141,7 +142,7 @@ function AdminView({ focusRequestId, onClearFocus }: Props) {
         {[
           { label: 'Pendientes de aprobar', value: pending.length, color: pending.length > 0 ? 'text-amber-600' : 'text-gray-900' },
           { label: 'Gastos programados',    value: scheduled.filter(s => s.isActive).length, color: 'text-gray-900' },
-          { label: 'Gastado este mes',      value: `$${monthSpent.toFixed(2)}`, color: 'text-gray-900' },
+          { label: 'Gastado este mes',      value: `$${fmt(monthSpent)}`, color: 'text-gray-900' },
         ].map(s => (
           <div key={s.label} className="bg-white border border-gray-200 rounded-xl p-4">
             <p className="text-xs text-gray-500">{s.label}</p>
@@ -187,7 +188,7 @@ function AdminView({ focusRequestId, onClearFocus }: Props) {
                 {req.notes && <p className="text-xs text-gray-400 mt-0.5 italic">"{req.notes}"</p>}
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-lg font-medium text-gray-900">${req.amount.toFixed(2)}</span>
+                <span className="text-lg font-medium text-gray-900">${fmt(req.amount)}</span>
                 <button onClick={() => handleApprove(req)} disabled={review.isPending}
                   className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-40">
                   Aprobar
@@ -236,7 +237,7 @@ function AdminView({ focusRequestId, onClearFocus }: Props) {
                         {e.isUpcoming && !e.isOverdue && <span className="ml-2 text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full">Próximo</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{e.category}</td>
-                      <td className="px-4 py-3 text-right font-medium text-gray-900">${e.amount.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-gray-900">${fmt(e.amount)}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{RECURRENCE_LABEL[e.recurrence]}</td>
                       <td className={`px-4 py-3 text-xs ${e.isOverdue ? 'text-red-600 font-medium' : e.isUpcoming ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
                         {new Date(e.nextDueDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -285,7 +286,7 @@ function AdminView({ focusRequestId, onClearFocus }: Props) {
                       {r.denyReason && <p className="text-xs text-red-500 mt-0.5">"{r.denyReason}"</p>}
                     </td>
                     <td className="px-4 py-3 text-gray-500">{r.requestedBy}</td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">${r.amount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900">${fmt(r.amount)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[r.status]}`}>
                         {STATUS_LABEL[r.status]}
@@ -312,7 +313,7 @@ function AdminView({ focusRequestId, onClearFocus }: Props) {
             <p className="font-medium text-gray-900">Denegar solicitud</p>
             <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
               <p className="font-medium">{reviewingRequest.description}</p>
-              <p className="text-gray-500">{reviewingRequest.requestedBy} · ${reviewingRequest.amount.toFixed(2)}</p>
+              <p className="text-gray-500">{reviewingRequest.requestedBy} · ${fmt(reviewingRequest.amount)}</p>
             </div>
             <div>
               <label className="text-xs text-gray-500 block mb-1">Motivo (opcional)</label>
@@ -386,7 +387,7 @@ function CashierView({ focusRequestId, onClearFocus }: Props) {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-medium text-gray-900">${e.amount.toFixed(2)}</span>
+                <span className="font-medium text-gray-900">${fmt(e.amount)}</span>
                 <button onClick={() => { setPayScheduled(e); setShowModal(true) }}
                   className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${e.isOverdue ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-amber-500 text-white hover:bg-amber-600'}`}>
                   Solicitar pago
@@ -413,7 +414,7 @@ function CashierView({ focusRequestId, onClearFocus }: Props) {
                   </p>
                   {r.denyReason && <p className="text-xs text-red-500 mt-0.5">Motivo: {r.denyReason}</p>}
                 </div>
-                <span className="font-medium text-sm text-gray-900">${r.amount.toFixed(2)}</span>
+                <span className="font-medium text-sm text-gray-900">${fmt(r.amount)}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[r.status]}`}>
                   {STATUS_LABEL[r.status]}
                 </span>

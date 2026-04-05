@@ -1,5 +1,6 @@
 import { usePosStore } from '@/store/posStore'
 import type { CartItem as CartItemType } from '../types/pos.types'
+import { fmt } from '@/lib/fmt'
 
 interface Props { item: CartItemType }
 
@@ -19,7 +20,7 @@ export function CartItem({ item }: Props) {
         <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
         <div className="flex items-center gap-1">
           <p className={`text-xs ${hasCustomPrice ? 'text-indigo-500' : 'text-gray-400'}`}>
-            ${unitPrice.toFixed(2)}/{product.unit}
+            ${fmt(unitPrice)}/{product.unit}
           </p>
           {hasCustomPrice && (
             <span className="text-xs bg-indigo-50 text-indigo-500 px-1 rounded">especial</span>
@@ -46,7 +47,7 @@ export function CartItem({ item }: Props) {
       </div>
 
       <div className="text-right shrink-0 min-w-[52px]">
-        <p className="text-sm font-medium text-gray-900">${lineTotal.toFixed(2)}</p>
+        <p className="text-sm font-medium text-gray-900">${fmt(lineTotal)}</p>
         <button
           onClick={() => removeItem(product.id)}
           className="text-xs text-gray-300 hover:text-red-400 transition-colors"

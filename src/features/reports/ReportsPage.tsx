@@ -5,7 +5,10 @@ import { api } from '@/lib/api'
 import * as XLSX from 'xlsx'
 import { FilterPill } from '@/components/FilterPill'
 import { useExpenseRequests } from '@/features/expenses/hooks/useExpenses'
+import { useTicketByOrder } from '@/features/pos/hooks/useTicket'
+import { TicketView } from '@/features/pos/components/TicketView'
 import type { Customer } from '../pos/types/pos.types'
+import { fmt } from '@/lib/fmt'
 
 const LS_CUSTOMER = 'reports-filter-customer'
 const LS_CASHIER  = 'reports-filter-cashier'
@@ -13,21 +16,44 @@ const LS_CASHIER  = 'reports-filter-cashier'
 type RangePreset = 'today' | 'week' | 'month' | 'custom'
 
 interface SaleRecord {
-  folio:          string
-  createdAt:      string
-  customerName:   string
-  paymentMethod:  string
-  total:          number
-  discountAmount: number
-  cashierName:    string
-  isDebtPayment:  boolean
-  advancePayment: number
-  pendingDebt:    number
+  folio:               string
+  createdAt:           string
+  customerName:        string
+  paymentMethod:       string
+  total:               number
+  discountAmount:      number
+  cashierName:         string
+  isDebtPayment:       boolean
+  advancePayment:      number
+  pendingDebt:         number
+  isFromCustomerOrder: boolean
+  orderId:             string | null
 }
 
 const METHOD_LABELS: Record<string, string> = {
   Cash: 'Efectivo', Card: 'Tarjeta',
   Transfer: 'Transferencia', PayLater: 'A crédito',
+}
+
+function ReprintModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+  const { data: ticket, isLoading } = useTicketByOrder(orderId)
+
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        {isLoading ? (
+          <div className="p-10 text-center text-sm text-gray-400">Cargando ticket...</div>
+        ) : ticket ? (
+          <TicketView ticket={ticket} onNewSale={onClose} closeLabel="Cerrar" />
+        ) : (
+          <div className="p-10 text-center">
+            <p className="text-sm text-gray-500">No se encontró el ticket</p>
+            <button className="btn-secondary mt-4" onClick={onClose}>Cerrar</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function ReportsPage() {
@@ -126,7 +152,7 @@ export function ReportsPage() {
       Fecha:     new Date(s.createdAt).toLocaleString('es-MX'),
       Cliente:   s.customerName,
       Cajero:    s.cashierName,
-      Tipo:      s.isDebtPayment ? 'Cobro deuda' : 'Venta',
+      Tipo:      s.isDebtPayment ? 'Cobro deuda' : s.isFromCustomerOrder ? 'Venta pedido' : 'Venta',
       Método:    METHOD_LABELS[s.paymentMethod] ?? s.paymentMethod,
       Descuento: s.discountAmount,
       Total:     s.total,
@@ -189,6 +215,8 @@ export function ReportsPage() {
   const totalSalesSum    = stats.totalSales
   const totalDiscountSum = stats.totalDiscounts
 
+  const [reprintOrderId, setReprintOrderId] = useState<string | null>(null)
+
   function handleCustomerFilter(name: string) {
     setCustomerFilter(name)
     if (name) localStorage.setItem(LS_CUSTOMER, name)
@@ -218,6 +246,9 @@ export function ReportsPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto flex flex-col gap-5" id="report-printable">
+      {reprintOrderId && (
+        <ReprintModal orderId={reprintOrderId} onClose={() => setReprintOrderId(null)} />
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -314,22 +345,22 @@ export function ReportsPage() {
           {[
             {
               label: 'Total ventas',
-              value: `$${stats.totalSales.toFixed(2)}`,
+              value: `$${fmt(stats.totalSales)}`,
               sub:   `${stats.totalOrders} tickets`,
             },
             {
               label: 'Ticket promedio',
-              value: `$${stats.averageTicket.toFixed(2)}`,
+              value: `$${fmt(stats.averageTicket)}`,
               sub:   'por venta',
             },
             {
               label: 'Efectivo en caja',
-              value: `$${stats.totalCash.toFixed(2)}`,
+              value: `$${fmt(stats.totalCash)}`,
               sub:   'ventas + anticipos + cobros',
             },
             {
               label: 'Descuentos',
-              value: `$${stats.totalDiscounts.toFixed(2)}`,
+              value: `$${fmt(stats.totalDiscounts)}`,
               sub:   'aplicados',
             },
           ].map(k => (
@@ -363,7 +394,7 @@ export function ReportsPage() {
                     <span className="text-xs text-gray-400">{pct.toFixed(0)}%</span>
                   </div>
                   <p className="text-sm font-medium text-gray-900">
-                    ${m.value.toFixed(2)}
+                    ${fmt(m.value)}
                   </p>
                   <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
@@ -416,6 +447,7 @@ export function ReportsPage() {
                   <th className="text-center px-4 py-2.5 text-xs text-gray-500 font-medium">Método</th>
                   <th className="text-right px-4 py-2.5 text-xs text-gray-500 font-medium">Descuento</th>
                   <th className="text-right px-4 py-2.5 text-xs text-gray-500 font-medium">Total</th>
+                  <th className="px-2 py-2.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -431,7 +463,11 @@ export function ReportsPage() {
                     <td className="px-4 py-2.5 text-center">
                       {s.isDebtPayment ? (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                          Pagado
+                          Cobro deuda
+                        </span>
+                      ) : s.isFromCustomerOrder ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                          Pedido
                         </span>
                       ) : (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
@@ -450,15 +486,29 @@ export function ReportsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right text-xs text-red-500">
-                      {s.discountAmount > 0 ? `-$${s.discountAmount.toFixed(2)}` : <span className="text-gray-300">—</span>}
+                      {s.discountAmount > 0 ? `-$${fmt(s.discountAmount)}` : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right font-medium text-gray-900">
-                      <div>${s.total.toFixed(2)}</div>
+                      <div>${fmt(s.total)}</div>
                       {s.paymentMethod === 'PayLater' && s.advancePayment > 0 && (
-                        <div className="text-xs text-green-600">+${s.advancePayment.toFixed(2)} anticipo</div>
+                        <div className="text-xs text-green-600">+${fmt(s.advancePayment)} anticipo</div>
                       )}
                       {s.paymentMethod === 'PayLater' && s.pendingDebt > 0 && (
-                        <div className="text-xs text-red-500">${s.pendingDebt.toFixed(2)} pendiente</div>
+                        <div className="text-xs text-red-500">${fmt(s.pendingDebt)} pendiente</div>
+                      )}
+                    </td>
+                    <td className="px-2 py-2.5">
+                      {s.orderId && (
+                        <button
+                          onClick={() => setReprintOrderId(s.orderId!)}
+                          title="Reimprimir ticket"
+                          className="text-gray-300 hover:text-indigo-500 transition-colors p-1 rounded">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="6 9 6 2 18 2 18 9"/>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                            <rect x="6" y="14" width="12" height="8"/>
+                          </svg>
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -470,10 +520,10 @@ export function ReportsPage() {
                     Total
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-red-500">
-                    {totalDiscountSum > 0 ? `-$${totalDiscountSum.toFixed(2)}` : '—'}
+                    {totalDiscountSum > 0 ? `-$${fmt(totalDiscountSum)}` : '—'}
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                    ${totalSalesSum.toFixed(2)}
+                    ${fmt(totalSalesSum)}
                   </td>
                 </tr>
               </tfoot>
@@ -490,7 +540,7 @@ export function ReportsPage() {
               Egresos aprobados ({approvedExpenses.length})
             </p>
             <span className="text-sm font-medium text-red-600">
-              -${approvedExpenses.reduce((s, e) => s + e.amount, 0).toFixed(2)}
+              -${fmt(approvedExpenses.reduce((s, e) => s + e.amount, 0))}
             </span>
           </div>
           <div className="overflow-x-auto">
@@ -517,7 +567,7 @@ export function ReportsPage() {
                     <td className="px-4 py-2.5 text-gray-500 text-xs">
                       {new Date(e.requestedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-medium text-red-600">-${e.amount.toFixed(2)}</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-red-600">-${fmt(e.amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -525,7 +575,7 @@ export function ReportsPage() {
                 <tr className="border-t-2 border-gray-200 bg-gray-50">
                   <td colSpan={5} className="px-4 py-3 text-sm font-medium text-gray-700">Total egresos</td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-red-600">
-                    -${approvedExpenses.reduce((s, e) => s + e.amount, 0).toFixed(2)}
+                    -${fmt(approvedExpenses.reduce((s, e) => s + e.amount, 0))}
                   </td>
                 </tr>
               </tfoot>

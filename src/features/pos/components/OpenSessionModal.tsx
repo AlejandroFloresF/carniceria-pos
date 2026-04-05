@@ -3,6 +3,7 @@ import { usePosStore } from '@/store/posStore'
 import { useOpenSession } from '../hooks/useOpenSession'
 import { useCashiers } from '../hooks/useCashiers'
 import { api } from '@/lib/api'
+import { fmt } from '@/lib/fmt'
 import { CustomerAvatar } from './CustomerAvatar'
 import { LoginPanel } from '@/features/auth/LoginPanel'
 import type { Customer } from '../types/pos.types'
@@ -159,7 +160,7 @@ export function OpenSessionModal() {
         <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 border border-gray-100">
           <div className="flex justify-between">
             <span>Fondo inicial</span>
-            <span className="font-medium">${openingCash.toFixed(2)}</span>
+            <span className="font-medium">${fmt(openingCash)}</span>
           </div>
           <div className="flex justify-between mt-1">
             <span>Fecha</span>

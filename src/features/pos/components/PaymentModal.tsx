@@ -2,18 +2,23 @@ import { useState } from 'react'
 import { useCreateOrder } from '../hooks/useCreateOrder'
 import { usePosStore } from '@/store/posStore'
 import { useCustomerDetail } from '../hooks/useCustomerDebts'
+import { useFulfillCustomerOrder } from '../hooks/useCustomerOrders'
 import { TicketView } from './TicketView'
 import type { PaymentMethod, TicketDto } from '../types/pos.types'
 import { useClientColor } from '../hooks/useClientColor'
+import { fmt } from '@/lib/fmt'
 
-type Method = PaymentMethod | 'PayLater'
+type Method = PaymentMethod | 'PayLater' | 'Split'
 
 const METHODS: { value: Method; label: string; requiresCustomer?: boolean }[] = [
   { value: 'Cash',     label: 'Efectivo' },
   { value: 'Card',     label: 'Tarjeta' },
   { value: 'Transfer', label: 'Transferencia' },
+  { value: 'Split',    label: 'Mixto' },
   { value: 'PayLater', label: 'Pagar después', requiresCustomer: true },
 ]
+
+type SplitSecondary = 'Card' | 'Transfer'
 
 function buildQuickAmounts(total: number): number[] {
   const steps = [50, 100, 200, 500]
@@ -32,10 +37,15 @@ export function PaymentModal({ onClose }: Props) {
   const [debtNote, setDebtNote]               = useState('')
   const [advancePayment, setAdvance]          = useState('')
   const [advanceMethod, setAdvanceMethod]     = useState<'Cash' | 'Card' | 'Transfer'>('Cash')
-  const total           = usePosStore(s => s.total())
+  const [splitCash, setSplitCash]             = useState('')
+  const [splitSecondary, setSplitSecondary]   = useState<SplitSecondary>('Transfer')
+  const total            = usePosStore(s => s.total())
   const selectedCustomer = usePosStore(s => s.selectedCustomer)
   const defaultCustomer  = usePosStore(s => s.defaultCustomer)
-  const createOrder     = useCreateOrder()
+  const loadedOrderId    = usePosStore(s => s.loadedOrderId)
+  const setLoadedOrder   = usePosStore(s => s.setLoadedOrder)
+  const createOrder      = useCreateOrder()
+  const fulfillOrder     = useFulfillCustomerOrder()
   const [method, setMethod]           = useState<Method>('Cash')
   const [cashReceived, setCashReceived] = useState('')
   const [ticket, setTicket]           = useState<TicketDto | null>(null)
@@ -46,25 +56,46 @@ export function PaymentModal({ onClose }: Props) {
     isRealCustomer ? selectedCustomer!.id : null
   )
 
-  const received    = parseFloat(cashReceived) || 0
-  const advance     = parseFloat(advancePayment) || 0
-  const debtAmount  = total - advance
-  const change      = Math.floor(received - total)
-  const canConfirm  = method === 'PayLater'
-    ? !!isRealCustomer && advance < total
-    : method !== 'Cash' || change >= 0
-  const quickAmounts = buildQuickAmounts(total)
+  const received     = parseFloat(cashReceived) || 0
+  const advance      = parseFloat(advancePayment) || 0
+  const splitCashAmt = parseFloat(splitCash) || 0
+  // Redondear a 2 decimales para que coincida con el Total que calcula el backend
+  const roundedTotal  = Math.round(total * 100) / 100
+  const splitSecondaryAmt = Math.max(0, Math.round((roundedTotal - splitCashAmt) * 100) / 100)
+  const debtAmount    = roundedTotal - advance
+  const change        = Math.floor(received - roundedTotal)
+  const canConfirm    = method === 'PayLater'
+    ? !!isRealCustomer && advance < roundedTotal
+    : method === 'Split'
+      ? splitCashAmt > 0 && splitCashAmt < roundedTotal
+      : method !== 'Cash' || received >= roundedTotal
+  const quickAmounts = buildQuickAmounts(roundedTotal)
 
   const pendingDebt = customerDetail?.pendingDebts.reduce((s, d) => s + d.amount, 0) ?? 0
 
   async function handleConfirm() {
     const res = await createOrder.mutateAsync({
-      paymentMethod:        method as PaymentMethod,
-      cashReceived:         method === 'Cash' ? received : method === 'PayLater' ? advance : total,
-      debtNote:             method === 'PayLater' ? debtNote : undefined,
-      advancePayment:       method === 'PayLater' ? advance : undefined,
-      advancePaymentMethod: method === 'PayLater' && advance > 0 ? advanceMethod : undefined,
+      paymentMethod:           method === 'Split' ? 'Cash' : method as PaymentMethod,
+      cashReceived:            method === 'Cash'     ? received
+                             : method === 'Split'    ? splitCashAmt
+                             : method === 'PayLater' ? advance
+                             : roundedTotal,
+      debtNote:                method === 'PayLater' ? debtNote : undefined,
+      advancePayment:          method === 'PayLater' ? advance : undefined,
+      advancePaymentMethod:    method === 'PayLater' && advance > 0 ? advanceMethod : undefined,
+      secondaryPaymentMethod:  method === 'Split' ? splitSecondary : undefined,
+      secondaryAmount:         method === 'Split' ? splitSecondaryAmt : undefined,
     })
+
+    // If a customer order was loaded into this sale, mark it as fulfilled
+    if (loadedOrderId && selectedCustomer) {
+      await fulfillOrder.mutateAsync({
+        customerId: selectedCustomer.id,
+        orderId:    loadedOrderId,
+      })
+      setLoadedOrder(null)
+    }
+
     setTicket(res.data)
   }
 
@@ -91,7 +122,7 @@ export function PaymentModal({ onClose }: Props) {
       <div className="modal">
         <div className="modal-header">
           <span className="modal-title">Confirmar pago</span>
-          <span className="text-xs text-gray-400">Total: ${total.toFixed(2)}</span>
+          <span className="text-xs text-gray-400">Total: ${fmt(roundedTotal)}</span>
         </div>
 
         <div className="modal-body">
@@ -107,7 +138,7 @@ export function PaymentModal({ onClose }: Props) {
 
           <div className="bg-gray-50 rounded-lg p-4 text-center">
             <p className="text-xs text-gray-500 mb-1">Total a cobrar</p>
-            <p className="text-3xl font-medium text-gray-900">${total.toFixed(2)}</p>
+            <p className="text-3xl font-medium text-gray-900">${fmt(roundedTotal)}</p>
           </div>
 
           {/* Métodos de pago */}
@@ -152,7 +183,7 @@ export function PaymentModal({ onClose }: Props) {
                 {quickAmounts.map(a => (
                   <button key={a} onClick={() => setCashReceived(String(a))}
                     className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50">
-                    ${a.toFixed(2)}
+                    ${fmt(a)}
                   </button>
                 ))}
               </div>
@@ -165,10 +196,66 @@ export function PaymentModal({ onClose }: Props) {
                   </p>
                   <p className={`text-xl font-medium ${change >= 0 ? 'text-green-800' : 'text-red-800'}`}>
                     {change >= 0
-                      ? `$${change.toFixed(0)}`       
-                      : `$${Math.abs(received - total).toFixed(2)} faltantes`}
+                      ? `$${fmt(change, 0)}`
+                      : `$${fmt(Math.abs(received - roundedTotal))} faltantes`}
                   </p>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Pago mixto */}
+          {method === 'Split' && (
+            <div className="flex flex-col gap-3">
+              {/* Método secundario */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1.5">Segundo método</p>
+                <div className="flex gap-2">
+                  {(['Transfer', 'Card'] as SplitSecondary[]).map(m => (
+                    <button key={m} type="button"
+                      onClick={() => setSplitSecondary(m)}
+                      className={`flex-1 py-2 text-sm rounded-lg border transition-all ${
+                        splitSecondary === m
+                          ? 'border-indigo-400 bg-indigo-50 text-indigo-700 font-medium'
+                          : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}>
+                      {m === 'Transfer' ? 'Transferencia' : 'Tarjeta'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Monto en efectivo */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Efectivo recibido</p>
+                <input type="number" className="input-base text-right text-xl"
+                  value={splitCash} placeholder="0.00" autoFocus
+                  min={0} max={roundedTotal - 0.01}
+                  onChange={e => setSplitCash(e.target.value)} />
+              </div>
+
+              {/* Resumen split */}
+              <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
+                <div className="flex justify-between items-center px-3 py-2 text-sm">
+                  <span className="text-gray-500">Efectivo</span>
+                  <span className="font-medium text-gray-900">${fmt(splitCashAmt)}</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-2 text-sm">
+                  <span className="text-gray-500">{splitSecondary === 'Transfer' ? 'Transferencia' : 'Tarjeta'}</span>
+                  <span className="font-medium text-gray-900">${fmt(splitSecondaryAmt)}</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-2 text-sm font-medium">
+                  <span className="text-gray-700">Total</span>
+                  <span className={splitCashAmt > 0 && splitCashAmt < roundedTotal ? 'text-green-700' : 'text-gray-400'}>
+                    ${roundedTotal.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {splitCashAmt >= roundedTotal && (
+                <p className="text-xs text-red-500 text-center">
+                  El efectivo no puede ser igual o mayor al total — usa "Efectivo" directamente
+                </p>
               )}
             </div>
           )}
@@ -213,17 +300,17 @@ export function PaymentModal({ onClose }: Props) {
                 <p className="text-sm font-medium" style={{ color }}>Resumen de deuda</p>
                 <div className="mt-1.5 flex flex-col gap-0.5">
                   <div className="flex justify-between text-xs" style={{ color: `${color}90` }}>
-                    <span>Total orden</span><span>${total.toFixed(2)}</span>
+                    <span>Total orden</span><span>${fmt(roundedTotal)}</span>
                   </div>
                   {advance > 0 && (
                     <div className="flex justify-between text-xs text-green-700">
-                      <span>Anticipo</span><span>− ${advance.toFixed(2)}</span>
+                      <span>Anticipo</span><span>− ${fmt(advance)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm font-medium pt-1 border-t border-dashed"
                     style={{ color, borderColor: `${color}30` }}>
                     <span>Queda debiendo</span>
-                    <span>${debtAmount.toFixed(2)}</span>
+                    <span>${fmt(debtAmount)}</span>
                   </div>
                 </div>
               </div>
@@ -252,7 +339,7 @@ export function PaymentModal({ onClose }: Props) {
                   {selectedCustomer!.name} tiene saldo pendiente
                 </p>
                 <p className="text-xs text-orange-600 mt-0.5">
-                  Debe <span className="font-medium">${pendingDebt.toFixed(2)}</span>
+                  Debe <span className="font-medium">${fmt(pendingDebt)}</span>
                   {customerDetail && customerDetail.pendingDebts.length > 0 && (
                     <span> · {customerDetail.pendingDebts.length} orden{customerDetail.pendingDebts.length > 1 ? 'es' : ''} · 
                     más antigua hace {Math.max(...customerDetail.pendingDebts.map(d => d.daysPending))} días</span>

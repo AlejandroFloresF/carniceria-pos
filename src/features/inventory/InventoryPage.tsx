@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStockStatus, useRegisterEntry, useRegisterWaste, useSetAlert, useMovements, useUpdateProductPrice } from './hooks/useInventory'
 import { useAllProducts, useCreateProduct, useUpdateProduct, useToggleProductActive, useDeleteProduct } from './hooks/useProductCrud'
 import type { StockStatusDto } from './types/inventory.types'
+import { fmt } from '@/lib/fmt'
 
 type Modal = 'entry' | 'waste' | 'alert' | 'movements' | null
 type Tab   = 'stock' | 'products'
@@ -162,7 +163,7 @@ export function InventoryPage() {
   }
   if (qty > selected.currentStockKg) {
     setWasteError(
-      `Stock insuficiente — solo hay ${selected.currentStockKg.toFixed(3)} kg de ${selected.productName}`
+      `Stock insuficiente — solo hay ${fmt(selected.currentStockKg, 3)} kg de ${selected.productName}`
     )
     return
   }
@@ -287,7 +288,7 @@ export function InventoryPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-gray-900">
-                      ${p.pricePerUnit.toFixed(2)}
+                      ${fmt(p.pricePerUnit)}
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-500">
                       {p.unit === 'kg' ? 'kg' : 'pieza'}
@@ -531,17 +532,17 @@ export function InventoryPage() {
                       <p className="text-xs text-gray-400">{p.category}</p>
                     </td>
                     <td className={`px-4 py-3 text-right ${stockColor}`}>
-                      {p.currentStockKg.toFixed(2)} {uLabel(p.unit)}
+                      {fmt(p.currentStockKg)} {uLabel(p.unit)}
                       {p.isBelowMinimum && (
                         <span className="ml-1.5 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">!</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-500">
-                      {p.minimumStockKg > 0 ? `${p.minimumStockKg.toFixed(1)} ${uLabel(p.unit)}` : '—'}
+                      {p.minimumStockKg > 0 ? `${fmt(p.minimumStockKg, 1)} ${uLabel(p.unit)}` : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">{p.totalSoldLast7Days.toFixed(2)} {uLabel(p.unit)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">{p.totalWasteLast7Days.toFixed(2)} {uLabel(p.unit)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600 hidden lg:table-cell">{p.averageDailySales.toFixed(2)} {uLabel(p.unit)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">{fmt(p.totalSoldLast7Days)} {uLabel(p.unit)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">{fmt(p.totalWasteLast7Days)} {uLabel(p.unit)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 hidden lg:table-cell">{fmt(p.averageDailySales)} {uLabel(p.unit)}</td>
                     <td className="px-4 py-3 text-right">
                       {editingPrice?.productId === p.productId ? (
                         <div className="flex items-center justify-end gap-1">
@@ -594,7 +595,7 @@ export function InventoryPage() {
                           title="Editar precio de venta"
                         >
                           <span className="font-medium">
-                            ${(p.salePrice ?? 0).toFixed(2)}/{uLabel(p.unit)}
+                            ${fmt(p.salePrice ?? 0)}/{uLabel(p.unit)}
                           </span>
                           <svg
                             width="13" height="13" viewBox="0 0 24 24" fill="none"
@@ -704,7 +705,7 @@ export function InventoryPage() {
             </div>
             <div className="modal-body">
               <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
-                Stock actual: <span className="font-medium">{selected.currentStockKg.toFixed(2)} {uLabel(selected.unit)}</span>
+                Stock actual: <span className="font-medium">{fmt(selected.currentStockKg)} {uLabel(selected.unit)}</span>
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Cantidad ({uLabel(selected.unit)})</label>
@@ -733,7 +734,7 @@ export function InventoryPage() {
               {entryForm.quantityKg && (
                 <div className="bg-indigo-50 rounded-lg p-3 text-sm text-indigo-700">
                   Stock resultante: <span className="font-medium">
-                    {(selected.currentStockKg + Number(entryForm.quantityKg)).toFixed(2)} {uLabel(selected.unit)}
+                    {fmt(selected.currentStockKg + Number(entryForm.quantityKg))} {uLabel(selected.unit)}
                   </span>
                 </div>
               )}
@@ -772,7 +773,7 @@ export function InventoryPage() {
           <div className="modal-body">
             <div className="bg-red-50 rounded-lg p-3 text-sm text-red-700 flex justify-between">
               <span>Stock actual</span>
-              <span className="font-medium">{selected.currentStockKg.toFixed(3)} {uLabel(selected.unit)}</span>
+              <span className="font-medium">{fmt(selected.currentStockKg, 3)} {uLabel(selected.unit)}</span>
             </div>
 
             <div>
@@ -786,7 +787,7 @@ export function InventoryPage() {
                   setWasteForm(f => ({ ...f, quantityKg: e.target.value }))
                   const val = parseFloat(e.target.value)
                   if (val > selected.currentStockKg) {
-                    setWasteError(`Máximo ${selected.currentStockKg.toFixed(3)} ${uLabel(selected.unit)}`)
+                    setWasteError(`Máximo ${fmt(selected.currentStockKg, 3)} ${uLabel(selected.unit)}`)
                   } else {
                     setWasteError('')
                   }
@@ -854,8 +855,8 @@ export function InventoryPage() {
                   onChange={e => setAlertForm({ minimumStockKg: e.target.value })} />
               </div>
               <p className="text-xs text-gray-400">
-                Promedio de venta diaria: {selected.averageDailySales.toFixed(2)} {uLabel(selected.unit)}/día —
-                un mínimo de {(selected.averageDailySales * 2).toFixed(1)} {uLabel(selected.unit)} cubre ~2 días.
+                Promedio de venta diaria: {fmt(selected.averageDailySales)} {uLabel(selected.unit)}/día —
+                un mínimo de {fmt(selected.averageDailySales * 2, 1)} {uLabel(selected.unit)} cubre ~2 días.
               </p>
               <button className="btn-primary"
                 disabled={!alertForm.minimumStockKg || setAlert.isPending}
@@ -893,7 +894,7 @@ export function InventoryPage() {
                       <span className={`text-sm font-medium ${
                         m.quantityKg > 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {m.quantityKg > 0 ? '+' : ''}{m.quantityKg.toFixed(3)} {uLabel(selected.unit)}
+                        {m.quantityKg > 0 ? '+' : ''}{fmt(m.quantityKg, 3)} {uLabel(selected.unit)}
                       </span>
                       <span className="text-xs text-gray-400 whitespace-nowrap">
                         {new Date(m.date).toLocaleDateString('es-MX', {
