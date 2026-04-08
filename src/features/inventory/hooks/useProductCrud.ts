@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { ProductPriceHistoryDto } from '../types/inventory.types'
 
 export interface ProductAdmin {
   id:           string
@@ -67,5 +68,14 @@ export function useDeleteProduct() {
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['inventory-status'] })
     },
+  })
+}
+
+export function usePriceHistory(productId: string | null) {
+  return useQuery<ProductPriceHistoryDto[]>({
+    queryKey: ['price-history', productId],
+    queryFn:  async () => { const { data } = await api.get(`/products/${productId}/price-history`); return data },
+    enabled:  !!productId,
+    staleTime: 30_000,
   })
 }

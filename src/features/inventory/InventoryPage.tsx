@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStockStatus, useRegisterEntry, useRegisterWaste, useSetAlert, useMovements, useUpdateProductPrice } from './hooks/useInventory'
 import { useAllProducts, useCreateProduct, useUpdateProduct, useToggleProductActive, useDeleteProduct } from './hooks/useProductCrud'
+import { PriceHistoryModal } from './components/PriceHistoryModal'
 import type { StockStatusDto } from './types/inventory.types'
 import { fmt } from '@/lib/fmt'
 
@@ -42,6 +43,7 @@ export function InventoryPage() {
   const [confirmDelete, setConfirmDelete]     = useState<string | null>(null)
   const [customCategory, setCustomCategory]   = useState('')
   const [showProductModal, setShowProductModal] = useState(false)
+  const [priceHistoryProduct, setPriceHistoryProduct] = useState<{ id: string; name: string; price: number } | null>(null)
 
   // Categorías únicas del catálogo + las predefinidas
   const allCategories = Array.from(new Set([
@@ -304,6 +306,13 @@ export function InventoryPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => setPriceHistoryProduct({ id: p.id, name: p.name, price: p.pricePerUnit })}
+                          className="text-xs border border-gray-200 hover:border-purple-300 hover:text-purple-600
+                                     px-2.5 py-1 rounded-lg transition-all hover:bg-purple-50"
+                          title="Historial de precios">
+                          Historial
+                        </button>
                         <button onClick={() => startEdit(p)}
                           className="text-xs border border-gray-200 hover:border-indigo-300 hover:text-indigo-600
                                      px-2.5 py-1 rounded-lg transition-all hover:bg-indigo-50">
@@ -428,6 +437,16 @@ export function InventoryPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Modal historial de precios */}
+          {priceHistoryProduct && (
+            <PriceHistoryModal
+              productId={priceHistoryProduct.id}
+              productName={priceHistoryProduct.name}
+              currentPrice={priceHistoryProduct.price}
+              onClose={() => setPriceHistoryProduct(null)}
+            />
           )}
 
           {/* Modal confirmación eliminar */}

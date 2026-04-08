@@ -38,11 +38,12 @@ interface CustomerForm {
   discountPercent: number
   color:           string
   emoji:           string
+  notes:           string
 }
 
 const EMPTY_FORM: CustomerForm = {
   name: '', phone: '', address: '',
-  discountPercent: 0, color: '#6366f1', emoji: '',
+  discountPercent: 0, color: '#6366f1', emoji: '', notes: '',
 }
 
 type Modal = 'form' | 'detail' | null
@@ -303,13 +304,21 @@ function CustomerDetailModal({ customer, onClose }: DetailModalProps) {
 
         {/* Info */}
         <div
-          className="px-5 py-2.5 border-b border-gray-100 flex gap-4 text-xs text-gray-500 shrink-0 flex-wrap"
+          className="px-5 py-2.5 border-b border-gray-100 flex flex-col gap-1.5 text-xs text-gray-500 shrink-0"
           style={{ backgroundColor: `${color}08` }}
         >
-          {customer.phone  && <span>📞 {customer.phone}</span>}
-          {detail?.address && <span>📍 {detail.address}</span>}
-          {customer.discountPercent > 0 && (
-            <span style={{ color }}>🏷 {customer.discountPercent}% descuento</span>
+          <div className="flex gap-4 flex-wrap">
+            {customer.phone  && <span>📞 {customer.phone}</span>}
+            {detail?.address && <span>📍 {detail.address}</span>}
+            {customer.discountPercent > 0 && (
+              <span style={{ color }}>🏷 {customer.discountPercent}% descuento</span>
+            )}
+          </div>
+          {detail?.notes && (
+            <div className="flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 text-amber-800">
+              <span className="shrink-0 text-sm">📋</span>
+              <span className="whitespace-pre-wrap leading-relaxed">{detail.notes}</span>
+            </div>
           )}
         </div>
 
@@ -546,7 +555,8 @@ export function CustomersPage() {
       address:         c.address ?? '',
       discountPercent: c.discountPercent,
       color:           c.color   ?? '#6366f1',
-      emoji:           (c as any).emoji ?? '',
+      emoji:           c.emoji   ?? '',
+      notes:           c.notes   ?? '',
     })
     setPhoneError('')
     setModal('form')
@@ -568,6 +578,7 @@ export function CustomersPage() {
       discountPercent: form.discountPercent,
       color:           form.color,
       emoji:           form.emoji   || undefined,
+      notes:           form.notes   || undefined,
     }
 
     if (editing) {
@@ -790,6 +801,20 @@ export function CustomersPage() {
                 <input className="input-base" value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                   placeholder="Ej. Calle Juárez 45, Col. Centro" />
+              </div>
+
+              {/* Notas internas */}
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">
+                  Notas internas <span className="text-gray-400">(preferencias, alergias, horario...)</span>
+                </label>
+                <textarea
+                  className="input-base resize-none"
+                  rows={3}
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Ej. Prefiere cortes sin grasa. Entrega los martes antes del mediodía. Alérgico al cerdo."
+                />
               </div>
 
               {/* Descuento */}

@@ -32,6 +32,13 @@ export interface InventoryEntryDto {
   entryDate: string
 }
 
+export interface ProductPriceHistoryDto {
+  id: string
+  oldPrice: number
+  newPrice: number
+  changedAt: string
+}
+
 export interface WasteRecordDto {
   id: string
   productId: string

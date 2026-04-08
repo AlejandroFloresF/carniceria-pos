@@ -5,8 +5,7 @@ import { api } from '@/lib/api'
 import * as XLSX from 'xlsx'
 import { FilterPill } from '@/components/FilterPill'
 import { useExpenseRequests } from '@/features/expenses/hooks/useExpenses'
-import { useTicketByOrder } from '@/features/pos/hooks/useTicket'
-import { TicketView } from '@/features/pos/components/TicketView'
+import { ReprintModal } from '@/features/pos/components/ReprintModal'
 import type { Customer } from '../pos/types/pos.types'
 import { fmt } from '@/lib/fmt'
 
@@ -35,26 +34,6 @@ const METHOD_LABELS: Record<string, string> = {
   Transfer: 'Transferencia', PayLater: 'A crédito',
 }
 
-function ReprintModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
-  const { data: ticket, isLoading } = useTicketByOrder(orderId)
-
-  return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        {isLoading ? (
-          <div className="p-10 text-center text-sm text-gray-400">Cargando ticket...</div>
-        ) : ticket ? (
-          <TicketView ticket={ticket} onNewSale={onClose} closeLabel="Cerrar" />
-        ) : (
-          <div className="p-10 text-center">
-            <p className="text-sm text-gray-500">No se encontró el ticket</p>
-            <button className="btn-secondary mt-4" onClick={onClose}>Cerrar</button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 export function ReportsPage() {
   const { session }                     = usePosStore()

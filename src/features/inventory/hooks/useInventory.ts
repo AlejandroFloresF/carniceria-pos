@@ -32,9 +32,10 @@ export function useUpdateProductPrice() {
   return useMutation({
     mutationFn: ({ productId, newPrice }: { productId: string; newPrice: number }) =>
       api.put(`/products/${productId}/price`, { newPrice }),
-    onSuccess: () => {
+    onSuccess: (_, { productId }) => {
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['inventory-status'] })
+      qc.invalidateQueries({ queryKey: ['price-history', productId] })
     },
   })
 }

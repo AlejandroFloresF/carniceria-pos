@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import { usePosStore } from '@/store/posStore'
 import { CloseSessionModal } from './CloseSessionModal'
+import { CashMovementsModal } from './CashMovementsModal'
+import { CashWithdrawalModal } from './CashWithdrawalModal'
 import { useClientColor } from '../hooks/useClientColor'
 
 export function SessionBar() {
   const { session, saleCount } = usePosStore()
-  const [showClose, setShowClose] = useState(false)
+  const [showClose, setShowClose]         = useState(false)
+  const [showMovements, setShowMovements] = useState(false)
+  const [showWithdraw, setShowWithdraw]   = useState(false)
   const color = useClientColor()
   
   if (!session) return null
@@ -30,15 +34,31 @@ export function SessionBar() {
           <span className="text-gray-400">·</span>
           <span className="text-gray-500 truncate">{saleCount} {saleCount === 1 ? 'venta' : 'ventas'}</span>
         </div>
-        <button
-          onClick={() => setShowClose(true)}
-          className="text-xs text-gray-500 hover:text-red-600 border border-gray-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap"
-        >
-          Cerrar turno
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowMovements(true)}
+            className="text-xs text-gray-500 hover:text-indigo-600 border border-gray-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap"
+          >
+            Movimientos
+          </button>
+          <button
+            onClick={() => setShowWithdraw(true)}
+            className="text-xs text-gray-500 hover:text-orange-600 border border-gray-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap"
+          >
+            Retiro
+          </button>
+          <button
+            onClick={() => setShowClose(true)}
+            className="text-xs text-gray-500 hover:text-red-600 border border-gray-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap"
+          >
+            Cerrar turno
+          </button>
+        </div>
       </div>
 
-      {showClose && <CloseSessionModal onClose={() => setShowClose(false)} />}
+      {showMovements && <CashMovementsModal onClose={() => setShowMovements(false)} />}
+      {showWithdraw  && <CashWithdrawalModal onClose={() => setShowWithdraw(false)} />}
+      {showClose     && <CloseSessionModal onClose={() => setShowClose(false)} />}
     </>
   )
 }

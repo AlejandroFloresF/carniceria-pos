@@ -66,6 +66,14 @@ export interface CashierSessionDto {
   openingCash: number        // ← agrega, lo necesita OpenSessionModal
 }
 
+export interface CashMovementDto {
+  at:          string
+  type:        'Apertura' | 'Venta' | 'Venta mixta' | 'Anticipo' | 'Cobro deuda' | 'Gasto' | 'Retiro'
+  description: string
+  amount:      number
+  orderId:     string | null
+}
+
 export interface SessionSummaryDto {
   sessionId:         string
   cashierName:       string
@@ -92,6 +100,7 @@ export interface Customer {
   totalDebt:       number
   color:           string
   emoji?:          string
+  notes?:          string
 }
 
 export interface CustomerProductPrice {
@@ -114,9 +123,10 @@ export interface CustomerDebt {
 }
 
 export interface CustomerDetail extends Customer {
-  totalDebt:    number         // ← sobrescribe el de Customer para que sea reactivo
+  totalDebt:    number
   pendingDebts: CustomerDebt[]
   customPrices: CustomerProductPrice[]
+  notes?:       string
 }
 
 // ── Pedidos de clientes ───────────────────────────────────────────────────────
