@@ -1,22 +1,97 @@
-import { useState } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { usePosStore } from '@/store/posStore'
 import { ProductGrid } from './ProductGrid'
 import { Cart } from './Cart'
 import { PedidosPanel } from './PedidosPanel'
 import { useClientColor } from '../hooks/useClientColor'
 import { useTodayOrders } from '../hooks/useCustomerOrders'
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
+import { parseScan } from '@/lib/scanParser'
+import { fetchProductByBarcode } from '../hooks/useProductByBarcode'
 
 type MobileTab = 'productos' | 'pedidos' | 'orden'
+
+type ScanToast =
+  | { kind: 'ok';      message: string }
+  | { kind: 'weight';  message: string }
+  | { kind: 'error';   message: string }
 
 export function POSLayout() {
   const [mobileTab, setMobileTab] = useState<MobileTab>('productos')
   const [showPedidos, setShowPedidos] = useState(true)
-  const { items } = usePosStore()
+  const [scanToast, setScanToast]     = useState<ScanToast | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { items, addItem, selectProduct, session } = usePosStore()
   const color = useClientColor()
   const { data: todayOrders = [] } = useTodayOrders()
 
+  const handleScan = useCallback(async (raw: string) => {
+    // Only process scans when a session is open
+    if (!session) return
+
+    const parsed = parseScan(raw)
+    if (!parsed) return
+
+    function toast(t: ScanToast) {
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+      setScanToast(t)
+      toastTimer.current = setTimeout(() => setScanToast(null), 3000)
+    }
+
+    const lookupCode = parsed.kind === 'weighted' ? parsed.plu : parsed.barcode
+    const product = await fetchProductByBarcode(lookupCode)
+
+    if (!product) {
+      toast({ kind: 'error', message: `Código no encontrado: ${lookupCode}` })
+      return
+    }
+
+    if (parsed.kind === 'weighted') {
+      // Weight embedded in barcode — add directly to cart
+      const weightKg = parsed.weightKg
+      if (product.stockKg < weightKg) {
+        toast({ kind: 'error', message: `Stock insuficiente para ${product.name}` })
+        return
+      }
+      addItem(product as any, weightKg)
+      toast({ kind: 'ok', message: `${product.name} — ${weightKg.toFixed(3)} kg agregado` })
+      setMobileTab('orden')
+    } else if (product.unit === 'piece') {
+      // Non-weighted piece product — add 1 unit
+      if (product.stockKg < 1) {
+        toast({ kind: 'error', message: `Sin stock: ${product.name}` })
+        return
+      }
+      addItem(product as any, 1)
+      toast({ kind: 'ok', message: `${product.name} agregado` })
+      setMobileTab('orden')
+    } else {
+      // kg product without weight in barcode — open WeightInput panel
+      selectProduct(product as any)
+      setMobileTab('productos')
+      toast({ kind: 'weight', message: `${product.name} — ingresa el peso` })
+    }
+  }, [session, addItem, selectProduct, toastTimer])
+
+  useBarcodeScanner(handleScan, !!session)
+
   return (
     <div className="h-full relative overflow-hidden">
+
+      {/* ── Scan toast ───────────────────────────────────── */}
+      {scanToast && (
+        <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-50
+          flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium
+          transition-all pointer-events-none
+          ${scanToast.kind === 'ok'     ? 'bg-green-600 text-white' :
+            scanToast.kind === 'weight' ? 'bg-indigo-600 text-white' :
+                                          'bg-red-600 text-white'}`}>
+          {scanToast.kind === 'ok'     && <span>✓</span>}
+          {scanToast.kind === 'weight' && <span>⚖</span>}
+          {scanToast.kind === 'error'  && <span>✕</span>}
+          {scanToast.message}
+        </div>
+      )}
 
       {/* ── Desktop: tres columnas ────────────────────────── */}
       <div className="hidden md:flex h-full">

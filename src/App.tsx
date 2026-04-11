@@ -10,10 +10,12 @@ import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { ReportsPage } from './features/reports/ReportsPage'
 import { GastosPage } from './features/expenses/GastosPage'
 import { MonitorPage } from './features/monitor/MonitorPage'
+import { SettingsPage } from './features/auth/SettingsPage'
+import { ResetPasswordModal } from './features/auth/ResetPasswordModal'
 import { NotificationBell } from './components/NotificationBell'
 import { useStockShortageAlerts } from '@/features/pos/hooks/useCustomerOrders'
 
-type Page = 'pos' | 'dashboard' | 'monitor' | 'customers' | 'inventory' | 'reports' | 'gastos'
+type Page = 'pos' | 'dashboard' | 'monitor' | 'customers' | 'inventory' | 'reports' | 'gastos' | 'settings'
 
 const ALL_PAGES: { id: Page; label: string; adminOnly: boolean; cashierOnly?: boolean }[] = [
   { id: 'pos',       label: 'Punto de venta', adminOnly: false, cashierOnly: true },
@@ -23,7 +25,11 @@ const ALL_PAGES: { id: Page; label: string; adminOnly: boolean; cashierOnly?: bo
   { id: 'inventory', label: 'Inventario',      adminOnly: false },
   { id: 'reports',   label: 'Reportes',        adminOnly: true  },
   { id: 'gastos',    label: 'Gastos',          adminOnly: false },
+  { id: 'settings',  label: 'Configuración',   adminOnly: true  },
 ]
+
+// Check for reset-token in URL on load
+const initialResetToken = new URLSearchParams(window.location.search).get('reset-token')
 
 export default function App() {
   const session                   = usePosStore(s => s.session)
@@ -32,7 +38,22 @@ export default function App() {
 
   const [page, setPage] = useState<Page>(() => adminLoggedIn ? 'dashboard' : 'pos')
   const [focusExpenseId, setFocusExpenseId] = useState<string | undefined>()
+  const [resetToken, setResetToken] = useState<string | null>(initialResetToken)
   const { data: stockAlerts = [] } = useStockShortageAlerts()
+  // Password reset modal — shown regardless of login state
+  if (resetToken) {
+    return (
+      <ResetPasswordModal
+        token={resetToken}
+        onClose={() => {
+          setResetToken(null)
+          // Clean the URL
+          window.history.replaceState({}, '', window.location.pathname)
+        }}
+      />
+    )
+  }
+
   // Sin sesión de cajero y sin admin → pantalla de inicio de turno
   if (!session && !adminLoggedIn) return <OpenSessionModal />
 
@@ -97,7 +118,17 @@ export default function App() {
           {/* Chip de usuario */}
           <div className="flex items-center gap-2 pl-2 border-l border-gray-100">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${adminLoggedIn ? 'bg-indigo-500' : 'bg-green-400'}`} />
+              {/* Avatar */}
+              {user?.profilePhoto
+                ? <img
+                    src={user.profilePhoto}
+                    alt="perfil"
+                    className="w-6 h-6 rounded-full object-cover ring-1 ring-indigo-200 cursor-pointer shrink-0"
+                    onClick={() => adminLoggedIn && setPage('settings')}
+                    title="Configuración"
+                  />
+                : <span className={`w-2 h-2 rounded-full shrink-0 ${adminLoggedIn ? 'bg-indigo-500' : 'bg-green-400'}`} />
+              }
               <span className="text-sm font-medium text-gray-800 hidden sm:block">{user?.username}</span>
               {adminLoggedIn && (
                 <span className="hidden md:inline text-[10px] font-semibold uppercase tracking-wide text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full">
@@ -167,6 +198,7 @@ export default function App() {
             />
           </div>
         )}
+        {activePage === 'settings'  && <div className="h-full overflow-y-auto"><SettingsPage /></div>}
       </div>
     </div>
   )
