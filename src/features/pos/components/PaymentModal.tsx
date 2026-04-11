@@ -63,7 +63,7 @@ export function PaymentModal({ onClose }: Props) {
   const roundedTotal  = Math.round(total * 100) / 100
   const splitSecondaryAmt = Math.max(0, Math.round((roundedTotal - splitCashAmt) * 100) / 100)
   const debtAmount    = roundedTotal - advance
-  const change        = Math.floor(received - roundedTotal)
+  const change        = Math.round((received - roundedTotal) * 100) / 100
   const canConfirm    = method === 'PayLater'
     ? !!isRealCustomer && advance < roundedTotal
     : method === 'Split'

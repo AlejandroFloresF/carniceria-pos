@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function PedidosPanel({ onOrderLoaded }: Props) {
-  const { data: orders = [], isLoading, refetch } = useTodayOrders()
+  const { data: orders = [], isLoading, isError, refetch } = useTodayOrders()
   const { addItem, setCustomer, setLoadedOrder, loadedOrderId, resetCart } = usePosStore()
   const qc = useQueryClient()
 
@@ -77,6 +77,20 @@ export function PedidosPanel({ onOrderLoaded }: Props) {
     )
   }
 
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 px-4 text-center gap-2">
+        <span className="text-2xl">⚠️</span>
+        <p className="text-xs text-red-500">No se pudieron cargar los pedidos</p>
+        <button
+          onClick={() => refetch()}
+          className="text-xs text-indigo-500 hover:text-indigo-700 mt-1">
+          Reintentar
+        </button>
+      </div>
+    )
+  }
+
   if (orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10 px-4 text-center gap-2">
@@ -125,7 +139,7 @@ export function PedidosPanel({ onOrderLoaded }: Props) {
               </p>
               <div className="flex gap-1 shrink-0">
                 {order.hasStockShortage && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium animate-stock-alert animate-stock-icon inline-flex items-center gap-0.5">
                     ⚠ Stock
                   </span>
                 )}
@@ -163,8 +177,8 @@ export function PedidosPanel({ onOrderLoaded }: Props) {
 
             {/* Load button */}
             {order.hasStockShortage ? (
-              <div className="rounded-lg bg-red-50 border border-red-100 px-2 py-1.5 text-center">
-                <p className="text-[11px] font-medium text-red-700">No se puede cargar</p>
+              <div className="rounded-lg border px-2 py-1.5 text-center animate-stock-alert" style={{ borderColor: '#fca5a5' }}>
+                <p className="text-[11px] font-medium text-red-700 animate-stock-icon inline-block">⚠ No se puede cargar</p>
                 <p className="text-[10px] text-red-400 mt-0.5">Stock insuficiente para este pedido</p>
               </div>
             ) : (

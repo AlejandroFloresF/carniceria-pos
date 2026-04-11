@@ -35,12 +35,14 @@ export function useCreateOrder() {
     onSuccess: () => {
       resetCart()
       incrementSaleCount()
+      // Immediately refresh: product stock + customer debt totals
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['customers'] })
       qc.invalidateQueries({ queryKey: ['customer-detail'] })
-      qc.invalidateQueries({ queryKey: ['inventory-status'] })   
-      qc.invalidateQueries({ queryKey: ['movements'] })          
-      qc.invalidateQueries({ queryKey: ['dashboard'] })         
+      // Defer until user navigates there: heavy aggregates that aren't visible at checkout
+      qc.invalidateQueries({ queryKey: ['inventory-status'], refetchType: 'active' })
+      qc.invalidateQueries({ queryKey: ['movements'],        refetchType: 'active' })
+      qc.invalidateQueries({ queryKey: ['dashboard'],        refetchType: 'active' })
     },
   })
 }

@@ -10,8 +10,7 @@ export function useCustomerDetail(customerId: string | null) {
       return data
     },
     enabled: !!customerId,
-    staleTime: 0,      
-    gcTime: 0,          
+    staleTime: 30_000,
   })
 }
 

@@ -2,6 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* ── Stock alert banner ──────────────────────────────────── */
+@keyframes stock-alert-bg {
+  0%,100%  { background-color: rgb(254 242 242); }
+  5%       { background-color: rgb(254 226 226); }
+  10%      { background-color: rgb(254 242 242); }
+}
+@keyframes stock-icon-bounce {
+  0%,100%  { transform: translateY(0);    }
+  3%       { transform: translateY(-4px); }
+  6%       { transform: translateY(0);    }
+  9%       { transform: translateY(-3px); }
+  12%      { transform: translateY(0);    }
+}
+.animate-stock-alert {
+  animation: stock-alert-bg 8s ease-in-out infinite;
+}
+.animate-stock-icon {
+  display: inline-block;
+  animation: stock-icon-bounce 8s ease-in-out infinite;
+}
+
+/* ── Logo: luz barriendo alrededor ───────────────────────── */
+/* Div con gradiente cónico que gira; aparece cada ~9s       */
+@keyframes logo-sweep-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes logo-sweep-fade {
+  0%,100%       { opacity: 0; }
+  8%, 42%       { opacity: 1; }
+  50%, 99%      { opacity: 0; }
+}
+.animate-logo-sweep {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    transparent 55%,
+    rgba(251,191,36,0.25) 70%,
+    rgba(253,230,138,0.9) 80%,
+    rgba(251,191,36,0.25) 90%,
+    transparent 100%
+  );
+  animation:
+    logo-sweep-spin 1.8s linear infinite,
+    logo-sweep-fade 9s ease-in-out infinite;
+  animation-delay: 0s, 2s;
+}
+
+/* ── Logo: glow ring pulsante ─────────────────────────────── */
+@keyframes logo-glow {
+  0%,100%  { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+  8%       { box-shadow: 0 0 0 3px rgba(251,191,36,0.5), 0 0 10px 3px rgba(251,191,36,0.25); }
+  42%      { box-shadow: 0 0 0 2px rgba(251,191,36,0.3), 0 0 6px 2px rgba(251,191,36,0.15); }
+  50%      { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+}
+.animate-logo-glow {
+  animation: logo-glow 9s ease-in-out infinite;
+  animation-delay: 2s;
+  border-radius: 50%;
+}
+
+/* ── Botón logout: pulso suave periódico ─────────────────── */
+@keyframes logout-pulse {
+  0%,100%  { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.88); }
+}
+.animate-logout-pulse {
+  animation: logout-pulse 3s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+/* ── Bell ────────────────────────────────────────────────── */
+@keyframes bell-shake {
+  0%,100% { transform: rotate(0deg); }
+  10%      { transform: rotate(14deg); }
+  20%      { transform: rotate(-10deg); }
+  30%      { transform: rotate(12deg); }
+  40%      { transform: rotate(-8deg); }
+  50%      { transform: rotate(8deg); }
+  60%      { transform: rotate(-5deg); }
+  70%      { transform: rotate(4deg); }
+  80%      { transform: rotate(-3deg); }
+  90%      { transform: rotate(2deg); }
+}
+
+.animate-bell {
+  animation: bell-shake 1.2s ease-in-out;
+  animation-delay: 0.3s;
+  animation-iteration-count: infinite;
+  animation-duration: 4s;
+}
+
 @layer base {
   * { box-sizing: border-box; }
 

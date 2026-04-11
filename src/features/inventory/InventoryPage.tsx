@@ -252,7 +252,7 @@ export function InventoryPage() {
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <input className="input-base flex-1" placeholder="Buscar producto..."
               value={productSearch}
-              onChange={e => setProductSearch(e.target.value)} />
+              onChange={e => setProductSearch(e.target.value)} maxLength={100} />
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer whitespace-nowrap">
               <input type="checkbox" checked={showInactive}
                 onChange={e => setShowInactive(e.target.checked)} className="rounded" />
@@ -361,7 +361,7 @@ export function InventoryPage() {
                     <div className="sm:col-span-2">
                       <label className="text-xs text-gray-500 block mb-1">Nombre *</label>
                       <input className="input-base" placeholder="Ej. Chorizo artesanal"
-                        value={productForm.name}
+                        value={productForm.name} maxLength={100}
                         onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))} />
                     </div>
                     <div>
@@ -377,7 +377,7 @@ export function InventoryPage() {
                       </select>
                       {productForm.category === '__custom__' && (
                         <input className="input-base mt-2" placeholder="Escribe la nueva categoría"
-                          value={customCategory}
+                          value={customCategory} maxLength={50}
                           onChange={e => setCustomCategory(e.target.value)} />
                       )}
                     </div>
@@ -395,7 +395,7 @@ export function InventoryPage() {
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                        <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" step="0.01"
+                        <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" max="9999999" step="0.01"
                           value={productForm.price}
                           onFocus={e => e.target.select()}
                           onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))} />
@@ -405,7 +405,7 @@ export function InventoryPage() {
                       <label className="text-xs text-gray-500 block mb-1">Código de barras</label>
                       <div className="flex gap-2">
                         <input className="input-base flex-1" placeholder="Ej. 7501234567890"
-                          value={productForm.barcode}
+                          value={productForm.barcode} maxLength={100}
                           onChange={e => setProductForm(f => ({ ...f, barcode: e.target.value }))} />
                         <button
                           type="button"
@@ -494,6 +494,7 @@ export function InventoryPage() {
           placeholder="Buscar producto..."
           value={search}
           onChange={e => setSearch(e.target.value)}
+          maxLength={100}
         />
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer whitespace-nowrap">
           <input
@@ -747,7 +748,7 @@ export function InventoryPage() {
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Notas (opcional)</label>
-                <input className="input-base" value={entryForm.notes}
+                <input className="input-base" value={entryForm.notes} maxLength={500}
                   onChange={e => setEntryForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
               {entryForm.quantityKg && (
@@ -837,7 +838,7 @@ export function InventoryPage() {
 
             <div>
               <label className="text-xs text-gray-500 block mb-1">Notas (opcional)</label>
-              <input className="input-base" value={wasteForm.notes}
+              <input className="input-base" value={wasteForm.notes} maxLength={500}
                 onChange={e => setWasteForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 

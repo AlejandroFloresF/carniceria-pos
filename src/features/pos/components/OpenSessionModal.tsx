@@ -12,6 +12,7 @@ export function OpenSessionModal() {
   const [cashierName, setCashierName]   = useState('')
   const [openingCash, setOpeningCash]   = useState(500)
   const [loading, setLoading]           = useState(false)
+  const [sessionError, setSessionError] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const { data: rawCashiers = [] } = useCashiers()
   const inputRef  = useRef<HTMLInputElement>(null)
@@ -38,34 +39,38 @@ export function OpenSessionModal() {
   }, [])
 
   async function handleOpen() {
-  if (!cashierName.trim()) return
-  setLoading(true)
+    if (!cashierName.trim()) return
+    setLoading(true)
+    setSessionError('')
 
-  sessionStorage.removeItem('pos-store')
+    sessionStorage.removeItem('pos-store')
 
-  try {
-    const res = await openSessionMutation.mutateAsync({ cashierName, openingCash })
-
-    let generalCustomer = null
     try {
-      const { data: customers } = await api.get<Customer[]>('/customers', {
-        params: { search: 'Público General' },
-      })
-      generalCustomer = customers.find(c => c.name === 'Público General') ?? null
-    } catch (_) {}
+      const res = await openSessionMutation.mutateAsync({ cashierName, openingCash })
 
-    openSession(cashierName, openingCash, res.data.sessionId, res.data.openedAt)
+      let generalCustomer: Customer | null = null
+      try {
+        const { data: customers } = await api.get<Customer[]>('/customers', {
+          params: { search: 'Público General' },
+        })
+        generalCustomer = customers.find(c => c.name === 'Público General') ?? null
+      } catch (_) {
+        console.warn('No se pudo cargar el cliente por defecto. El turno se abrió correctamente.')
+      }
 
-    if (generalCustomer) {
-      setDefaultCustomer(generalCustomer)
+      openSession(cashierName, openingCash, res.data.sessionId, res.data.openedAt)
+
+      if (generalCustomer) {
+        setDefaultCustomer(generalCustomer)
+      }
+
+    } catch (err) {
+      console.error('Error abriendo sesión:', err)
+      setSessionError('No se pudo abrir el turno. Verifica la conexión e intenta de nuevo.')
+    } finally {
+      setLoading(false)
     }
-
-  } catch (err) {
-    console.error('Error abriendo sesión:', err)
-  } finally {
-    setLoading(false)
   }
-}
 
   function selectSuggestion(name: string) {
     setCashierName(name)
@@ -171,6 +176,12 @@ export function OpenSessionModal() {
             </span>
           </div>
         </div>
+
+        {sessionError && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2 text-center">
+            {sessionError}
+          </p>
+        )}
 
         <button
           className="btn-primary"

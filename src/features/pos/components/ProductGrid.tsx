@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useProducts } from '../hooks/useProducts'
 import { usePosStore } from '@/store/posStore'
 import { useStockStatus } from '@/features/inventory/hooks/useInventory'
+import { useClientColor } from '../hooks/useClientColor'
 import { CategoryTabs } from './CategoryTabs'
 import { WeightInput } from './WeightInput'
 import { fmt } from '@/lib/fmt'
@@ -11,12 +12,20 @@ interface Props {
 }
 
 export function ProductGrid({ onProductAdded }: Props) {
-  const [search, setSearch] = useState('')
+  const [search, setSearch]           = useState('')
+  const [debouncedSearch, setDebounced] = useState('')
   const [activeCategory, setActiveCategory] = useState('Todos')
   const [alertsExpanded, setAlertsExpanded] = useState(false)
-  const { data: products = [], isLoading } = useProducts(search)
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const { data: products = [], isLoading } = useProducts(debouncedSearch)
   const { data: stockStatus = [] } = useStockStatus()
   const { selectedProduct, selectProduct } = usePosStore()
+  const color = useClientColor()
 
   // Build lookup: productId → stock info (only for items with an active minimum set)
   const lowStockMap = new Map(
@@ -96,20 +105,22 @@ export function ProductGrid({ onProductAdded }: Props) {
                 onClick={() => selectProduct(isSelected ? null : product)}
                 className={`text-left p-3 rounded-lg border transition-all ${
                   isSelected
-                    ? 'border-indigo-400 bg-indigo-50'
+                    ? ''
                     : isLow
                       ? 'border-amber-300 bg-amber-50 hover:border-amber-400'
                       : 'border-gray-100 bg-white hover:border-gray-200'
                 }`}
+                style={isSelected ? { borderColor: color, backgroundColor: `${color}15` } : {}}
               >
                 <p className="text-sm font-medium text-gray-900 leading-tight">
                   {product.name}
                 </p>
 
                 <div className="mt-1">
-                  <span className={`text-xs font-medium ${
-                    hasCustomPrice ? 'text-indigo-600' : 'text-gray-500'
-                  }`}>
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: hasCustomPrice ? color : '#6b7280' }}
+                  >
                     ${fmt(displayPrice)}
                   </span>
                   {hasCustomPrice && (
@@ -127,7 +138,10 @@ export function ProductGrid({ onProductAdded }: Props) {
                   </span>
                 )}
                 {hasCustomPrice && !isLow && (
-                  <span className="mt-1 inline-block text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">
+                  <span
+                    className="mt-1 inline-block text-xs px-1.5 py-0.5 rounded"
+                    style={{ backgroundColor: `${color}15`, color }}
+                  >
                     precio especial
                   </span>
                 )}

@@ -7,9 +7,10 @@ import { CustomerAvatar } from './CustomerAvatar'
 import type { Customer, ProductWithPrice } from '../types/pos.types'
 
 export function CustomerSelector() {
-  const [search, setSearch]   = useState('')
-  const [open, setOpen]       = useState(false)
-  const qc                    = useQueryClient()
+  const [search, setSearch]     = useState('')
+  const [open, setOpen]         = useState(false)
+  const [pricingError, setPricingError] = useState(false)
+  const qc                      = useQueryClient()
 
   const { data: customers = [] } = useCustomers(search)
   const {
@@ -28,6 +29,7 @@ export function CustomerSelector() {
     setSearch('')
 
     // Si el cliente tiene precios especiales, actualiza los items ya en el carrito
+    setPricingError(false)
     if (items.length > 0) {
       try {
         const { data: products } = await api.get<ProductWithPrice[]>(
@@ -45,7 +47,7 @@ export function CustomerSelector() {
           }
         })
       } catch (_) {
-        // Si falla la carga de precios, el carrito queda con precios generales
+        setPricingError(true)
       }
     }
 
@@ -56,6 +58,7 @@ export function CustomerSelector() {
   async function resetToDefault() {
     if (defaultCustomer) {
       setCustomer(defaultCustomer)
+      setPricingError(false)
 
       // Restaura precios generales en items del carrito
       if (items.length > 0) {
@@ -69,7 +72,9 @@ export function CustomerSelector() {
               updateItemPrice(item.product.id, priceMap[item.product.id])
             }
           })
-        } catch (_) {}
+        } catch (_) {
+          setPricingError(true)
+        }
       }
 
       qc.invalidateQueries({ queryKey: ['products'] })
@@ -119,6 +124,12 @@ export function CustomerSelector() {
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
         />
+      )}
+
+      {pricingError && (
+        <p className="mt-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+          No se pudieron cargar los precios del cliente — usando precios generales.
+        </p>
       )}
 
       {open && (

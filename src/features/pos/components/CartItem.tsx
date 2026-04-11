@@ -8,11 +8,9 @@ export function CartItem({ item }: Props) {
   const { updateQty, removeItem } = usePosStore()
   const { product, quantity } = item
 
-  // effectivePrice existe cuando hay precio especial por cliente
-  // pricePerUnit es el precio general sin cliente
-  const unitPrice = (product as any).effectivePrice ?? (product as any).pricePerUnit ?? 0
-  const lineTotal = unitPrice * quantity
-  const hasCustomPrice = (product as any).hasCustomPrice === true
+  const unitPrice      = product.effectivePrice ?? product.pricePerUnit ?? 0
+  const lineTotal      = unitPrice * quantity
+  const hasCustomPrice = product.hasCustomPrice === true
 
   return (
     <div className="flex items-center gap-2 py-2.5">

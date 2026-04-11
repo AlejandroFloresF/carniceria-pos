@@ -19,37 +19,43 @@ export function SessionBar() {
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-2 bg-white border-b border-gray-100 text-sm gap-2">
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <span className="flex items-center gap-1.5 min-w-0">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: color }} />
-            <span className="font-medium text-gray-900 truncate">{session.cashierName}</span>
+      <div
+        className="flex items-center justify-between px-4 py-1.5 border-b text-xs gap-2 shrink-0"
+        style={{ backgroundColor: `${color}08`, borderColor: `${color}25` }}
+      >
+        {/* Info del turno */}
+        <div className="flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar">
+          <span className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: color }} />
+          <span className="font-semibold text-gray-700 shrink-0" style={{ color }}>{session.cashierName}</span>
+          <span className="text-gray-300 shrink-0">|</span>
+          <span className="text-gray-500 shrink-0">
+            {openedAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
           </span>
-          <span className="text-gray-400">·</span>
-          <span className="text-gray-500 truncate">
-            Turno desde {openedAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+          <span className="text-gray-300 shrink-0">·</span>
+          <span className="text-gray-500 shrink-0">{elapsed}</span>
+          <span className="text-gray-300 shrink-0">·</span>
+          <span className="font-medium shrink-0" style={{ color }}>
+            {saleCount} {saleCount === 1 ? 'venta' : 'ventas'}
           </span>
-          <span className="text-gray-400">·</span>
-          <span className="text-gray-500 truncate">{elapsed}</span>
-          <span className="text-gray-400">·</span>
-          <span className="text-gray-500 truncate">{saleCount} {saleCount === 1 ? 'venta' : 'ventas'}</span>
         </div>
-        <div className="flex gap-2">
+
+        {/* Acciones */}
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setShowMovements(true)}
-            className="text-xs text-gray-500 hover:text-indigo-600 border border-gray-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap"
+            className="text-gray-500 hover:text-gray-700 px-2.5 py-1 rounded-md hover:bg-white/70 transition-colors whitespace-nowrap"
           >
             Movimientos
           </button>
           <button
             onClick={() => setShowWithdraw(true)}
-            className="text-xs text-gray-500 hover:text-orange-600 border border-gray-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap"
+            className="text-gray-500 hover:text-orange-600 px-2.5 py-1 rounded-md hover:bg-white/70 transition-colors whitespace-nowrap"
           >
             Retiro
           </button>
           <button
             onClick={() => setShowClose(true)}
-            className="text-xs text-gray-500 hover:text-red-600 border border-gray-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap"
+            className="text-red-400 hover:text-red-600 px-2.5 py-1 rounded-md hover:bg-red-50 transition-colors whitespace-nowrap font-medium"
           >
             Cerrar turno
           </button>

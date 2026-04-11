@@ -625,6 +625,7 @@ export function CustomersPage() {
         placeholder="Buscar por nombre..."
         value={search}
         onChange={e => setSearch(e.target.value)}
+        maxLength={100}
       />
 
       {/* Tabla */}
@@ -775,7 +776,7 @@ export function CustomersPage() {
                 <label className="text-xs text-gray-500 block mb-1">Nombre *</label>
                 <input className="input-base" value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Ej. Juan Pérez" autoFocus />
+                  placeholder="Ej. Juan Pérez" autoFocus maxLength={100} />
               </div>
 
               {/* Teléfono */}
@@ -784,7 +785,7 @@ export function CustomersPage() {
                 <input
                   className={`input-base ${phoneError ? 'border-red-300' : ''}`}
                   value={form.phone} inputMode="tel"
-                  placeholder="Ej. 33 1234 5678"
+                  placeholder="Ej. 33 1234 5678" maxLength={20}
                   onChange={e => {
                     const val = e.target.value.replace(/[^\d\s\+\-\(\)]/g, '')
                     setForm(f => ({ ...f, phone: val }))
@@ -800,7 +801,7 @@ export function CustomersPage() {
                 <label className="text-xs text-gray-500 block mb-1">Dirección</label>
                 <input className="input-base" value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                  placeholder="Ej. Calle Juárez 45, Col. Centro" />
+                  placeholder="Ej. Calle Juárez 45, Col. Centro" maxLength={100} />
               </div>
 
               {/* Notas internas */}
@@ -814,6 +815,7 @@ export function CustomersPage() {
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                   placeholder="Ej. Prefiere cortes sin grasa. Entrega los martes antes del mediodía. Alérgico al cerdo."
+                  maxLength={1000}
                 />
               </div>
 

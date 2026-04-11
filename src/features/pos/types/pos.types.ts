@@ -1,13 +1,15 @@
 export type PaymentMethod = 'Cash' | 'Card' | 'Transfer'
 
 export interface Product {
-  effectivePrice: number
   id: string
   name: string
   category: string
   pricePerUnit: number
+  effectivePrice: number
+  generalPrice?: number
   unit: 'kg' | 'piece'
   stockKg: number
+  hasCustomPrice?: boolean
 }
 
 export interface CartItem {

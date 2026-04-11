@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useExpenseNotifications } from '@/features/expenses/hooks/useExpenses'
+import { useStockShortageAlerts } from '@/features/pos/hooks/useCustomerOrders'
 import type { ExpenseNotificationItem } from '@/features/expenses/types/expense.types'
 
 const LS_DISMISSED = 'notif-dismissed-ids'
@@ -15,7 +16,9 @@ function saveDismissed(ids: Set<string>) {
 
 interface Props {
   cashierName?: string
+  isAdmin?: boolean
   onNavigate: (requestId?: string) => void
+  onStockAlert?: () => void
 }
 
 const SEVERITY_STYLE: Record<string, string> = {
@@ -39,11 +42,23 @@ const SEVERITY_LABEL: Record<string, string> = {
   success: 'Aprobado',
 }
 
-export function NotificationBell({ cashierName, onNavigate }: Props) {
+export function NotificationBell({ cashierName, isAdmin, onNavigate, onStockAlert }: Props) {
   const [open, setOpen] = useState(false)
   const [dismissed, setDismissed] = useState<Set<string>>(getDismissed)
   const ref = useRef<HTMLDivElement>(null)
   const { data } = useExpenseNotifications(cashierName)
+  const { data: stockAlerts = [] } = useStockShortageAlerts()
+
+  // Convierte alertas de stock en items de notificación (solo para admin)
+  const stockItems: ExpenseNotificationItem[] = isAdmin
+    ? stockAlerts.map(a => ({
+        type:       'UpcomingExpense' as const,
+        title:      `Stock insuficiente — ${a.customerName}`,
+        subtitle:   a.shortageItems.map(s => s.productName).join(', '),
+        referenceId: `stock-${a.orderId}`,
+        severity:   'danger' as const,
+      }))
+    : []
 
   // When new data arrives, un-dismiss IDs that are no longer in the list
   // (e.g. a pending request that was approved should stop occupying a dismissed slot)
@@ -57,7 +72,8 @@ export function NotificationBell({ cashierName, onNavigate }: Props) {
     })
   }, [data])
 
-  const visibleItems = (data?.items ?? []).filter(
+  const allItems = [...stockItems, ...(data?.items ?? [])]
+  const visibleItems = allItems.filter(
     item => !item.referenceId || !dismissed.has(item.referenceId)
   )
 
@@ -79,7 +95,11 @@ export function NotificationBell({ cashierName, onNavigate }: Props) {
       setDismissed(next)
       saveDismissed(next)
     }
-    onNavigate(item.referenceId)
+    if (item.referenceId?.startsWith('stock-')) {
+      onStockAlert?.()
+    } else {
+      onNavigate(item.referenceId)
+    }
   }
 
   function clearAll() {
@@ -97,14 +117,27 @@ export function NotificationBell({ cashierName, onNavigate }: Props) {
         className="relative p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
         title="Notificaciones"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {/* Campana con shake cuando hay notificaciones */}
+        <svg
+          width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          className={total > 0 ? 'animate-bell' : ''}
+          style={{ transformOrigin: '50% 0%' }}
+        >
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
+
+        {/* Badge con pulse ring cuando hay notificaciones */}
         {total > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 text-[10px] font-bold text-white bg-red-500 rounded-full flex items-center justify-center leading-none">
-            {total > 99 ? '99+' : total}
-          </span>
+          <>
+            {/* Pulse ring */}
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-400 opacity-60 animate-ping" />
+            {/* Badge */}
+            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 text-[10px] font-bold text-white bg-red-500 rounded-full flex items-center justify-center leading-none z-10">
+              {total > 99 ? '99+' : total}
+            </span>
+          </>
         )}
       </button>
 
@@ -125,7 +158,7 @@ export function NotificationBell({ cashierName, onNavigate }: Props) {
           {visibleItems.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">Sin notificaciones</p>
           ) : (
-            <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+            <div className="max-h-80 overflow-y-auto overflow-x-hidden divide-y divide-gray-50">
               {visibleItems.map((item, i) => (
                 <div key={i} className="flex items-start gap-1 pr-2 hover:bg-gray-50 transition-colors">
                   <button
@@ -135,7 +168,7 @@ export function NotificationBell({ cashierName, onNavigate }: Props) {
                     <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${SEVERITY_DOT[item.severity]}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{item.subtitle}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">{item.subtitle}</p>
                     </div>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${SEVERITY_STYLE[item.severity]}`}>
                       {SEVERITY_LABEL[item.severity] ?? item.severity}

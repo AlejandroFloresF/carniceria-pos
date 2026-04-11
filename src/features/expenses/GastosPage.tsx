@@ -318,7 +318,7 @@ function AdminView({ focusRequestId, onClearFocus }: Props) {
             <div>
               <label className="text-xs text-gray-500 block mb-1">Motivo (opcional)</label>
               <input className="input-base" placeholder="Ej. Presupuesto insuficiente"
-                value={denyReason} onChange={e => setDenyReason(e.target.value)} />
+                value={denyReason} onChange={e => setDenyReason(e.target.value)} maxLength={500} />
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowDenyModal(false)} className="btn-secondary flex-1">Cancelar</button>
@@ -490,14 +490,14 @@ function ScheduledExpenseModal({ editing, onClose }: { editing: ScheduledExpense
           <div>
             <label className="text-xs text-gray-500 block mb-1">Nombre *</label>
             <input className="input-base" placeholder="Ej. Luz CFE"
-              value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} maxLength={100} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Monto esperado *</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" step="0.01"
+                <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" max="9999999" step="0.01"
                   value={form.amount} onFocus={e => e.target.select()}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
               </div>
@@ -531,7 +531,7 @@ function ScheduledExpenseModal({ editing, onClose }: { editing: ScheduledExpense
           <div>
             <label className="text-xs text-gray-500 block mb-1">Notas (opcional)</label>
             <input className="input-base" placeholder="Ej. Contrato #1234"
-              value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+              value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} maxLength={500} />
           </div>
           {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex gap-2 mt-1">
@@ -602,14 +602,14 @@ function ExpenseRequestModal({
           <div>
             <label className="text-xs text-gray-500 block mb-1">Descripción *</label>
             <input className="input-base" placeholder="Ej. Desayuno del turno"
-              value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+              value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} maxLength={100} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Monto *</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" step="0.01"
+                <input type="number" className="input-base pl-6" placeholder="0.00" min="0.01" max="9999999" step="0.01"
                   value={form.amount} onFocus={e => e.target.select()}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
               </div>
@@ -625,7 +625,7 @@ function ExpenseRequestModal({
           <div>
             <label className="text-xs text-gray-500 block mb-1">Notas (opcional)</label>
             <input className="input-base" placeholder="Información adicional"
-              value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+              value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} maxLength={500} />
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
             Esta solicitud requiere autorización del administrador antes de efectuarse.

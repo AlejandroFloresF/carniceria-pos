@@ -50,6 +50,7 @@ export function LoginPanel() {
           placeholder="Usuario"
           value={username}
           autoComplete="username"
+          maxLength={100}
           onChange={e => setUsername(e.target.value)}
         />
         <input
@@ -58,6 +59,7 @@ export function LoginPanel() {
           placeholder="Contraseña"
           value={password}
           autoComplete="current-password"
+          maxLength={255}
           onChange={e => setPassword(e.target.value)}
         />
         {error && <p className="text-xs text-red-600">{error}</p>}

@@ -162,6 +162,7 @@ export const usePosStore = create<PosStore>()(
         defaultCustomer: s.defaultCustomer,
         selectedCustomer: s.selectedCustomer,
         discountPercent: s.discountPercent,
+        items: s.items,
       }),
     }
   )

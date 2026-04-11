@@ -9,14 +9,16 @@ import { CustomersPage } from '@/features/customers/CustomersPage'
 import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { ReportsPage } from './features/reports/ReportsPage'
 import { GastosPage } from './features/expenses/GastosPage'
+import { MonitorPage } from './features/monitor/MonitorPage'
 import { NotificationBell } from './components/NotificationBell'
 import { useStockShortageAlerts } from '@/features/pos/hooks/useCustomerOrders'
 
-type Page = 'pos' | 'dashboard' | 'customers' | 'inventory' | 'reports' | 'gastos'
+type Page = 'pos' | 'dashboard' | 'monitor' | 'customers' | 'inventory' | 'reports' | 'gastos'
 
 const ALL_PAGES: { id: Page; label: string; adminOnly: boolean; cashierOnly?: boolean }[] = [
   { id: 'pos',       label: 'Punto de venta', adminOnly: false, cashierOnly: true },
   { id: 'dashboard', label: 'Dashboard',       adminOnly: true  },
+  { id: 'monitor',   label: 'Monitor',         adminOnly: true  },
   { id: 'customers', label: 'Clientes',        adminOnly: false },
   { id: 'inventory', label: 'Inventario',      adminOnly: false },
   { id: 'reports',   label: 'Reportes',        adminOnly: true  },
@@ -31,7 +33,6 @@ export default function App() {
   const [page, setPage] = useState<Page>(() => adminLoggedIn ? 'dashboard' : 'pos')
   const [focusExpenseId, setFocusExpenseId] = useState<string | undefined>()
   const { data: stockAlerts = [] } = useStockShortageAlerts()
-
   // Sin sesión de cajero y sin admin → pantalla de inicio de turno
   if (!session && !adminLoggedIn) return <OpenSessionModal />
 
@@ -42,74 +43,90 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Barra de sesión cajero */}
-      {session && <SessionBar />}
 
-      {/* Barra admin cuando está logueado sin turno de cajero */}
-      {adminLoggedIn && !session && (
-        <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 text-sm shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
-            <span className="font-medium text-gray-900">{user?.username}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">
-              Administrador
-            </span>
+      {/* ── Header principal ─────────────────────────────────── */}
+      <header className="flex items-center gap-3 px-4 h-13 bg-white border-b border-gray-100 shrink-0" style={{ height: '52px' }}>
+
+        {/* Logotipo */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="relative shrink-0">
+            {/* Luz giratoria periódica detrás del logo */}
+            <div className="absolute -inset-1 rounded-full animate-logo-sweep pointer-events-none" />
+            {/* Glow ring pulsante */}
+            <div className="absolute -inset-0.5 rounded-full animate-logo-glow pointer-events-none" />
+            <img src="/logo.jpg" alt="Gradilla" className="relative z-10 h-8 w-8 rounded-full object-cover ring-2 ring-white" />
           </div>
-          <button
-            onClick={logout}
-            className="text-xs text-gray-500 hover:text-red-600 border border-gray-200 px-3 py-1 rounded-lg transition-colors"
-          >
-            Cerrar sesión
-          </button>
+          <span className="hidden sm:block font-semibold text-gray-800 text-sm leading-tight">
+            Gradilla<br />
+            <span className="text-[10px] font-normal text-gray-400 uppercase tracking-widest">100% Est. 1938</span>
+          </span>
         </div>
-      )}
 
-      {/* Nav */}
-      <nav className="flex items-center px-4 py-2 bg-white border-b border-gray-100 shrink-0 gap-2">
-        {/* Logo */}
-        <img src="/logo.jpg" alt="Carnicería Gradilla" className="h-8 w-8 rounded-full object-cover shrink-0" />
+        {/* Divisor */}
+        <div className="hidden sm:block w-px h-6 bg-gray-100 shrink-0" />
 
-        {/* tabs — overflow scrolls horizontally but never clips the bell */}
-        <div className="flex flex-wrap items-center gap-1 flex-1 overflow-x-auto min-w-0">
+        {/* Tabs de navegación */}
+        <nav className="flex items-center gap-0.5 flex-1 overflow-x-auto min-w-0 no-scrollbar">
           {visiblePages.map(item => (
             <button
               key={item.id}
               onClick={() => setPage(item.id)}
-              className={`text-sm px-4 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+              className={`text-sm px-3 py-1.5 rounded-lg transition-all whitespace-nowrap font-medium ${
                 activePage === item.id
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
               }`}
             >
               {item.label}
             </button>
           ))}
-        </div>
+        </nav>
 
-        {/* Bell + logout — outside the scrollable tabs so dropdown never clips */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Derecha: campana + usuario */}
+        <div className="flex items-center gap-2 shrink-0">
           <NotificationBell
             cashierName={adminLoggedIn ? undefined : session?.cashierName}
+            isAdmin={adminLoggedIn}
             onNavigate={(requestId) => {
               setPage('gastos')
               if (requestId) setFocusExpenseId(requestId)
             }}
+            onStockAlert={() => setPage('customers')}
           />
-          {adminLoggedIn && session && (
-            <button
-              onClick={logout}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors px-2 py-1 rounded"
-            >
-              Salir (admin)
-            </button>
-          )}
+
+          {/* Chip de usuario */}
+          <div className="flex items-center gap-2 pl-2 border-l border-gray-100">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${adminLoggedIn ? 'bg-indigo-500' : 'bg-green-400'}`} />
+              <span className="text-sm font-medium text-gray-800 hidden sm:block">{user?.username}</span>
+              {adminLoggedIn && (
+                <span className="hidden md:inline text-[10px] font-semibold uppercase tracking-wide text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                  Admin
+                </span>
+              )}
+            </div>
+            {adminLoggedIn && (
+              <button
+                onClick={logout}
+                className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50 animate-logout-pulse"
+                title="Cerrar sesión"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
-      </nav>
+      </header>
+
+      {/* Barra de sesión cajero (sub-header compacto) */}
+      {session && <SessionBar />}
 
       {/* Stock shortage alert — polled every 5 min */}
       {stockAlerts.length > 0 && (
-        <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center gap-2 shrink-0">
-          <span className="text-red-500 text-sm shrink-0">⚠</span>
+        <div className="animate-stock-alert bg-red-50 border-b border-red-200 px-4 py-2 flex items-center gap-2 shrink-0">
+          <span className="text-red-500 text-sm shrink-0 animate-stock-icon">⚠</span>
           <p className="text-xs text-red-800 flex-1 min-w-0">
             <span className="font-medium">Stock insuficiente para pedidos próximos: </span>
             {stockAlerts.map((a, i) => (
@@ -138,6 +155,7 @@ export default function App() {
               </div>
         )}
         {activePage === 'dashboard' && <div className="h-full overflow-y-auto"><DashboardPage /></div>}
+        {activePage === 'monitor'   && <div className="h-full overflow-y-auto"><MonitorPage /></div>}
         {activePage === 'customers' && <div className="h-full overflow-y-auto"><CustomersPage /></div>}
         {activePage === 'inventory' && <div className="h-full overflow-y-auto"><InventoryPage /></div>}
         {activePage === 'reports'   && <div className="h-full overflow-y-auto"><ReportsPage /></div>}
