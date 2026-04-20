@@ -1,27 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { startRegistration } from '@simplewebauthn/browser'
+import { useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Shared ────────────────────────────────────────────────────────────────────
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Toast({ msg, kind }: { msg: string | null; kind: 'ok' | 'err' }) {
+  if (!msg) return null
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">{title}</h2>
-      {children}
-    </div>
+    <p className={`text-xs font-medium mt-2 ${kind === 'ok' ? 'text-green-600' : 'text-red-500'}`}>
+      {kind === 'ok' ? '✓ ' : '✕ '}{msg}
+    </p>
   )
-}
-
-function SuccessMsg({ msg }: { msg: string | null }) {
-  if (!msg) return null
-  return <p className="text-xs text-green-600 font-medium">{msg}</p>
-}
-
-function ErrorMsg({ msg }: { msg: string | null }) {
-  if (!msg) return null
-  return <p className="text-xs text-red-600">{msg}</p>
 }
 
 // ── Profile Photo ─────────────────────────────────────────────────────────────
@@ -30,488 +19,250 @@ function ProfilePhotoSection() {
   const { user, updateProfile } = useAuthStore()
   const fileRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [msg,     setMsg]     = useState<{ text: string; kind: 'ok' | 'err' } | null>(null)
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) { setError('Selecciona una imagen válida.'); return }
-    if (file.size > 5_000_000) { setError('La imagen debe pesar menos de 5 MB.'); return }
-
+    if (!file.type.startsWith('image/')) { setMsg({ text: 'Selecciona una imagen válida.', kind: 'err' }); return }
+    if (file.size > 5_000_000) { setMsg({ text: 'La imagen debe pesar menos de 5 MB.', kind: 'err' }); return }
     const reader = new FileReader()
     reader.onload = async () => {
-      const base64 = reader.result as string
-      setLoading(true)
-      setError(null)
-      setSuccess(null)
+      setLoading(true); setMsg(null)
       try {
+        const base64 = reader.result as string
         await api.put('/auth/profile-photo', { base64DataUrl: base64 })
         updateProfile({ profilePhoto: base64 })
-        setSuccess('Foto actualizada.')
+        setMsg({ text: 'Foto actualizada.', kind: 'ok' })
       } catch {
-        setError('Error al guardar la foto.')
-      } finally {
-        setLoading(false)
-      }
+        setMsg({ text: 'Error al guardar la foto.', kind: 'err' })
+      } finally { setLoading(false) }
     }
     reader.readAsDataURL(file)
   }
 
   async function handleRemove() {
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
+    setLoading(true); setMsg(null)
     try {
       await api.put('/auth/profile-photo', { base64DataUrl: null })
       updateProfile({ profilePhoto: null })
-      setSuccess('Foto eliminada.')
+      setMsg({ text: 'Foto eliminada.', kind: 'ok' })
     } catch {
-      setError('Error al eliminar la foto.')
-    } finally {
-      setLoading(false)
-    }
+      setMsg({ text: 'Error al eliminar.', kind: 'err' })
+    } finally { setLoading(false) }
   }
 
   return (
-    <Section title="Foto de perfil">
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          {user?.profilePhoto
-            ? <img src={user.profilePhoto} alt="perfil" className="w-16 h-16 rounded-full object-cover ring-2 ring-indigo-100" />
-            : <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-2xl text-indigo-300 ring-2 ring-indigo-100">
-                {user?.username?.[0]?.toUpperCase() ?? '?'}
-              </div>
-          }
+    <div className="flex flex-col items-center gap-3 py-2">
+      {/* Avatar */}
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={loading}
+        className="relative group"
+        title="Cambiar foto"
+      >
+        {user?.profilePhoto
+          ? <img src={user.profilePhoto} alt="perfil"
+              className="w-24 h-24 rounded-full object-cover ring-4 ring-indigo-50 group-hover:ring-indigo-200 transition-all" />
+          : <div className="w-24 h-24 rounded-full bg-indigo-50 ring-4 ring-indigo-100 group-hover:ring-indigo-200 flex items-center justify-center text-4xl font-light text-indigo-300 transition-all">
+              {user?.username?.[0]?.toUpperCase() ?? '?'}
+            </div>
+        }
+        {/* Overlay */}
+        <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+          <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
         </div>
-        <div className="flex flex-col gap-2">
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={loading}
-            className="btn-secondary text-xs"
-          >
-            {loading ? 'Subiendo...' : 'Cambiar foto'}
-          </button>
-          {user?.profilePhoto && (
-            <button onClick={handleRemove} disabled={loading} className="text-xs text-red-500 hover:text-red-700 transition-colors">
-              Eliminar foto
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="mt-2">
-        <SuccessMsg msg={success} />
-        <ErrorMsg msg={error} />
-      </div>
-    </Section>
-  )
-}
-
-// ── OTP helper ────────────────────────────────────────────────────────────────
-
-function OtpStep({
-  purpose,
-  onSent,
-}: {
-  purpose: string
-  onSent: () => void
-}) {
-  const [sending, setSending] = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
-
-  async function sendOtp() {
-    setSending(true)
-    setError(null)
-    try {
-      await api.post('/auth/send-otp', { purpose })
-      onSent()
-    } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Error al enviar el código.')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-gray-500">
-        Se enviará un código de verificación a tu correo registrado.
-      </p>
-      <ErrorMsg msg={error} />
-      <button onClick={sendOtp} disabled={sending} className="btn-secondary text-xs self-start">
-        {sending ? 'Enviando...' : 'Enviar código'}
       </button>
+
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+
+      <div className="flex items-center gap-3">
+        <button onClick={() => fileRef.current?.click()} disabled={loading}
+          className="text-sm text-indigo-600 font-medium hover:text-indigo-800 transition-colors disabled:opacity-50">
+          {loading ? 'Subiendo...' : 'Cambiar foto'}
+        </button>
+        {user?.profilePhoto && <>
+          <span className="text-gray-200">|</span>
+          <button onClick={handleRemove} disabled={loading}
+            className="text-sm text-red-400 hover:text-red-600 transition-colors disabled:opacity-50">
+            Eliminar
+          </button>
+        </>}
+      </div>
+
+      {msg && <Toast msg={msg.text} kind={msg.kind} />}
     </div>
   )
 }
 
-// ── Change Password ───────────────────────────────────────────────────────────
+// ── Editable Field Row ────────────────────────────────────────────────────────
 
-function ChangePasswordSection() {
-  const [step,     setStep]     = useState<'form' | 'otp'>('form')
-  const [current,  setCurrent]  = useState('')
-  const [next,     setNext]     = useState('')
-  const [otp,      setOtp]      = useState('')
+function FieldRow({
+  label, value, type = 'text', placeholder, minLength, maxLength, confirmLabel,
+  onSave,
+}: {
+  label: string
+  value?: string | null
+  type?: string
+  placeholder?: string
+  minLength?: number
+  maxLength?: number
+  confirmLabel?: string
+  onSave: (val: string, extra?: string) => Promise<void>
+}) {
+  const [editing,  setEditing]  = useState(false)
+  const [val,      setVal]      = useState('')
+  const [extra,    setExtra]    = useState('') // for password: confirm current
   const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
-  const [success,  setSuccess]  = useState<string | null>(null)
+  const [msg,      setMsg]      = useState<{ text: string; kind: 'ok' | 'err' } | null>(null)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
+  function open() { setVal(''); setExtra(''); setMsg(null); setEditing(true) }
+  function close() { setEditing(false); setMsg(null) }
+
+  async function handleSave() {
+    setLoading(true); setMsg(null)
     try {
-      await api.put('/auth/change-password', {
-        currentPassword: current,
-        newPassword: next,
-        otpCode: otp,
-      })
-      setSuccess('Contraseña actualizada.')
-      setCurrent(''); setNext(''); setOtp(''); setStep('form')
+      await onSave(val, extra || undefined)
+      setMsg({ text: 'Guardado.', kind: 'ok' })
+      setEditing(false)
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Error al cambiar la contraseña.')
-    } finally {
-      setLoading(false)
-    }
+      setMsg({ text: err?.response?.data?.error ?? 'Error al guardar.', kind: 'err' })
+    } finally { setLoading(false) }
   }
 
-  return (
-    <Section title="Cambiar contraseña">
-      {step === 'form' && (
-        <div className="flex flex-col gap-3">
-          <input
-            type="password"
-            className="input-base"
-            placeholder="Contraseña actual"
-            value={current}
-            maxLength={255}
-            onChange={e => setCurrent(e.target.value)}
-          />
-          <input
-            type="password"
-            className="input-base"
-            placeholder="Nueva contraseña (mín. 8 caracteres)"
-            value={next}
-            minLength={8}
-            maxLength={255}
-            onChange={e => setNext(e.target.value)}
-          />
-          <button
-            onClick={() => setStep('otp')}
-            disabled={!current || next.length < 8}
-            className="btn-secondary text-xs self-start"
-          >
-            Continuar
-          </button>
-        </div>
-      )}
+  const isPassword = type === 'password'
+  const canSave    = isPassword
+    ? extra.length > 0 && val.length >= (minLength ?? 1)
+    : val.trim().length >= (minLength ?? 1)
 
-      {step === 'otp' && (
-        <div className="flex flex-col gap-3">
-          <OtpStep purpose="change-password" onSent={() => {}} />
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+  return (
+    <div className="py-4 border-b border-gray-50 last:border-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">{label}</p>
+          {!editing && (
+            <p className="text-sm text-gray-800 truncate">
+              {isPassword ? '••••••••' : (value || <span className="text-gray-400 italic">No configurado</span>)}
+            </p>
+          )}
+        </div>
+        {!editing && (
+          <button onClick={open}
+            className="shrink-0 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
+            Editar
+          </button>
+        )}
+      </div>
+
+      {editing && (
+        <div className="mt-3 flex flex-col gap-2">
+          {isPassword && (
             <input
-              className="input-base tracking-widest text-center text-lg"
-              placeholder="Código OTP"
-              value={otp}
-              maxLength={6}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+              type="password"
+              className="input-base"
+              placeholder="Contraseña actual"
+              value={extra}
+              maxLength={255}
+              autoFocus
+              onChange={e => setExtra(e.target.value)}
             />
-            <ErrorMsg msg={error} />
-            <div className="flex gap-2">
-              <button type="submit" disabled={loading || otp.length < 6} className="btn-primary flex-1">
-                {loading ? 'Guardando...' : 'Confirmar'}
-              </button>
-              <button type="button" onClick={() => { setStep('form'); setError(null) }} className="btn-secondary">
-                Atrás
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-      <SuccessMsg msg={success} />
-    </Section>
-  )
-}
-
-// ── Change Username ───────────────────────────────────────────────────────────
-
-function ChangeUsernameSection() {
-  const { user, updateProfile } = useAuthStore()
-  const [step,    setStep]    = useState<'form' | 'otp'>('form')
-  const [newName, setNewName] = useState('')
-  const [otp,     setOtp]     = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
-    try {
-      const { data } = await api.put<{ username: string }>('/auth/username', {
-        newUsername: newName,
-        otpCode: otp,
-      })
-      updateProfile({ username: data.username })
-      setSuccess('Usuario actualizado.')
-      setNewName(''); setOtp(''); setStep('form')
-    } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Error al cambiar el usuario.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Section title="Cambiar nombre de usuario">
-      <p className="text-xs text-gray-500 mb-3">Usuario actual: <strong>{user?.username}</strong></p>
-      {step === 'form' && (
-        <div className="flex flex-col gap-3">
+          )}
           <input
+            type={type}
             className="input-base"
-            placeholder="Nuevo nombre de usuario"
-            value={newName}
-            maxLength={100}
-            onChange={e => setNewName(e.target.value)}
+            placeholder={placeholder ?? confirmLabel ?? label}
+            value={val}
+            minLength={minLength}
+            maxLength={maxLength}
+            autoFocus={!isPassword}
+            onChange={e => setVal(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && canSave) handleSave() }}
           />
-          <button
-            onClick={() => setStep('otp')}
-            disabled={!newName.trim() || newName === user?.username}
-            className="btn-secondary text-xs self-start"
-          >
-            Continuar
-          </button>
-        </div>
-      )}
-
-      {step === 'otp' && (
-        <div className="flex flex-col gap-3">
-          <OtpStep purpose="change-username" onSent={() => {}} />
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-            <input
-              className="input-base tracking-widest text-center text-lg"
-              placeholder="Código OTP"
-              value={otp}
-              maxLength={6}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-            />
-            <ErrorMsg msg={error} />
-            <div className="flex gap-2">
-              <button type="submit" disabled={loading || otp.length < 6} className="btn-primary flex-1">
-                {loading ? 'Guardando...' : 'Confirmar'}
-              </button>
-              <button type="button" onClick={() => { setStep('form'); setError(null) }} className="btn-secondary">
-                Atrás
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-      <SuccessMsg msg={success} />
-    </Section>
-  )
-}
-
-// ── Change Email ──────────────────────────────────────────────────────────────
-
-function ChangeEmailSection() {
-  const { user, updateProfile } = useAuthStore()
-  const [step,     setStep]     = useState<'form' | 'otp'>('form')
-  const [newEmail, setNewEmail] = useState('')
-  const [otp,      setOtp]      = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
-  const [success,  setSuccess]  = useState<string | null>(null)
-
-  async function handleRequest(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    try {
-      await api.post('/auth/request-email-change', { newEmail })
-      setStep('otp')
-    } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Error al solicitar el cambio.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleConfirm(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
-    try {
-      const { data } = await api.post<{ email: string }>('/auth/confirm-email-change', { otpCode: otp })
-      updateProfile({ email: data.email })
-      setSuccess('Correo actualizado.')
-      setNewEmail(''); setOtp(''); setStep('form')
-    } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Error al confirmar.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Section title="Cambiar correo">
-      <p className="text-xs text-gray-500 mb-3">
-        Correo actual: <strong>{user?.email ?? 'No configurado'}</strong>
-      </p>
-
-      {step === 'form' && (
-        <form onSubmit={handleRequest} className="flex flex-col gap-3">
-          <input
-            type="email"
-            className="input-base"
-            placeholder="Nuevo correo electrónico"
-            value={newEmail}
-            maxLength={200}
-            onChange={e => setNewEmail(e.target.value)}
-          />
-          <ErrorMsg msg={error} />
-          <button type="submit" disabled={loading || !newEmail} className="btn-secondary text-xs self-start">
-            {loading ? 'Enviando...' : 'Enviar código al nuevo correo'}
-          </button>
-        </form>
-      )}
-
-      {step === 'otp' && (
-        <form onSubmit={handleConfirm} className="flex flex-col gap-3">
-          <p className="text-xs text-gray-500">
-            Se envió un código de verificación a <strong>{newEmail}</strong>. Ingrésalo para confirmar.
-          </p>
-          <input
-            className="input-base tracking-widest text-center text-lg"
-            placeholder="Código OTP"
-            value={otp}
-            maxLength={6}
-            onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-          />
-          <ErrorMsg msg={error} />
-          <div className="flex gap-2">
-            <button type="submit" disabled={loading || otp.length < 6} className="btn-primary flex-1">
-              {loading ? 'Confirmando...' : 'Confirmar'}
+          {msg && <Toast msg={msg.text} kind={msg.kind} />}
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={handleSave}
+              disabled={loading || !canSave}
+              className="btn-primary flex-1 text-sm"
+            >
+              {loading ? 'Guardando...' : 'Guardar'}
             </button>
-            <button type="button" onClick={() => { setStep('form'); setError(null) }} className="btn-secondary">
-              Atrás
+            <button onClick={close} className="btn-secondary text-sm">
+              Cancelar
             </button>
           </div>
-        </form>
-      )}
-      <SuccessMsg msg={success} />
-    </Section>
-  )
-}
-
-// ── Passkey Section ───────────────────────────────────────────────────────────
-
-function PasskeySection() {
-  const [hasPasskey, setHasPasskey] = useState<boolean | null>(null)
-  const [loading,    setLoading]    = useState(false)
-  const [error,      setError]      = useState<string | null>(null)
-  const [success,    setSuccess]    = useState<string | null>(null)
-
-  // Fetch passkey status on mount
-  useEffect(() => {
-    api.get<{ hasPasskey: boolean }>('/auth/me').then(r => setHasPasskey(r.data.hasPasskey))
-  }, [])
-
-  async function handleRegister() {
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
-    try {
-      // 1. Get registration options
-      const { data: options } = await api.post('/auth/passkey/register-options')
-
-      // 2. Create credential via browser (FaceID / TouchID / Windows Hello)
-      const credential = await startRegistration({ optionsJSON: options })
-
-      // 3. Verify with server
-      await api.post('/auth/passkey/register-verify', {
-        clientDataJson:    credential.response.clientDataJSON,
-        attestationObject: credential.response.attestationObject,
-      })
-      setHasPasskey(true)
-      setSuccess('Passkey registrada. Ya puedes iniciar sesión con biométrico.')
-    } catch (err: any) {
-      const msg = err?.response?.data?.error
-      if (msg) setError(msg)
-      else if (err?.name === 'NotAllowedError') setError('Registro cancelado.')
-      else setError('Error al registrar la passkey.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleRemove() {
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
-    try {
-      await api.delete('/auth/passkey')
-      setHasPasskey(false)
-      setSuccess('Passkey eliminada.')
-    } catch {
-      setError('Error al eliminar la passkey.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Section title="Face ID / Huella digital (Passkey)">
-      <p className="text-xs text-gray-500 mb-4">
-        Registra tu dispositivo para iniciar sesión con FaceID, TouchID o Windows Hello sin contraseña.
-      </p>
-
-      {hasPasskey === null && <p className="text-xs text-gray-400">Cargando...</p>}
-
-      {hasPasskey === false && (
-        <button onClick={handleRegister} disabled={loading} className="btn-secondary text-xs">
-          {loading ? 'Registrando...' : 'Registrar passkey en este dispositivo'}
-        </button>
-      )}
-
-      {hasPasskey === true && (
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-green-600 font-medium">Passkey activa en este dispositivo</span>
-          <button onClick={handleRemove} disabled={loading} className="text-xs text-red-500 hover:text-red-700 transition-colors">
-            {loading ? 'Eliminando...' : 'Eliminar'}
-          </button>
         </div>
       )}
 
-      <div className="mt-2">
-        <SuccessMsg msg={success} />
-        <ErrorMsg msg={error} />
-      </div>
-    </Section>
+      {!editing && msg && <Toast msg={msg.text} kind={msg.kind} />}
+    </div>
   )
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
+  const { user, updateProfile } = useAuthStore()
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 flex flex-col gap-5">
-      <div>
+    <div className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-4">
+
+      {/* Header */}
+      <div className="mb-1">
         <h1 className="text-lg font-bold text-gray-900">Configuración</h1>
-        <p className="text-sm text-gray-500">Administra tu perfil y seguridad de la cuenta.</p>
+        <p className="text-sm text-gray-400">Perfil y seguridad</p>
       </div>
 
-      <ProfilePhotoSection />
-      <ChangeUsernameSection />
-      <ChangeEmailSection />
-      <ChangePasswordSection />
-      <PasskeySection />
+      {/* Photo card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <ProfilePhotoSection />
+      </div>
+
+      {/* Account fields card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-5">
+
+        <FieldRow
+          label="Nombre de usuario"
+          value={user?.username}
+          placeholder="Nuevo nombre de usuario"
+          maxLength={100}
+          onSave={async (val) => {
+            const { data } = await api.put<{ username: string }>('/auth/username', { newUsername: val })
+            updateProfile({ username: data.username })
+          }}
+        />
+
+        <FieldRow
+          label="Correo electrónico"
+          value={user?.email}
+          type="email"
+          placeholder="nuevo@correo.com"
+          maxLength={200}
+          onSave={async (val) => {
+            const { data } = await api.put<{ email: string }>('/auth/email', { newEmail: val })
+            updateProfile({ email: data.email })
+          }}
+        />
+
+        <FieldRow
+          label="Contraseña"
+          type="password"
+          placeholder="Nueva contraseña (mín. 8 caracteres)"
+          minLength={8}
+          maxLength={255}
+          onSave={async (newPass, currentPass) => {
+            await api.put('/auth/change-password', {
+              currentPassword: currentPass,
+              newPassword: newPass,
+            })
+          }}
+        />
+
+      </div>
+
     </div>
   )
 }

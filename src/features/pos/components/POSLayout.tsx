@@ -20,13 +20,26 @@ export function POSLayout() {
   const [mobileTab, setMobileTab] = useState<MobileTab>('productos')
   const [showPedidos, setShowPedidos] = useState(true)
   const [scanToast, setScanToast]     = useState<ScanToast | null>(null)
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toastTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Weighted barcodes already in this order — cleared when cart resets
+  const scannedLabels = useRef<Set<string>>(new Set())
+  // Last plain-barcode scan — for 2-second debounce
+  const lastPlainScan = useRef<{ code: string; time: number } | null>(null)
+
   const { items, addItem, selectProduct, session } = usePosStore()
   const color = useClientColor()
   const { data: todayOrders = [] } = useTodayOrders()
 
+  // Clear duplicate-prevention state whenever the cart is emptied
+  const itemCount = items.length
+  const prevItemCount = useRef(itemCount)
+  if (itemCount === 0 && prevItemCount.current > 0) {
+    scannedLabels.current.clear()
+    lastPlainScan.current = null
+  }
+  prevItemCount.current = itemCount
+
   const handleScan = useCallback(async (raw: string) => {
-    // Only process scans when a session is open
     if (!session) return
 
     const parsed = parseScan(raw)
@@ -38,6 +51,24 @@ export function POSLayout() {
       toastTimer.current = setTimeout(() => setScanToast(null), 3000)
     }
 
+    // ── Duplicate prevention ──────────────────────────────────────
+    if (parsed.kind === 'weighted') {
+      // Same physical label = same exact code → always a duplicate
+      if (scannedLabels.current.has(raw)) {
+        toast({ kind: 'error', message: 'Esta etiqueta ya fue escaneada en esta orden.' })
+        return
+      }
+    } else {
+      // Plain barcode: debounce 2 s to prevent accidental double-scan
+      const now = Date.now()
+      if (lastPlainScan.current?.code === raw && now - lastPlainScan.current.time < 2000) {
+        toast({ kind: 'error', message: 'Escanea de nuevo en 2 s para agregar otra unidad.' })
+        return
+      }
+      lastPlainScan.current = { code: raw, time: now }
+    }
+    // ─────────────────────────────────────────────────────────────
+
     const lookupCode = parsed.kind === 'weighted' ? parsed.plu : parsed.barcode
     const product = await fetchProductByBarcode(lookupCode)
 
@@ -47,17 +78,16 @@ export function POSLayout() {
     }
 
     if (parsed.kind === 'weighted') {
-      // Weight embedded in barcode — add directly to cart
       const weightKg = parsed.weightKg
       if (product.stockKg < weightKg) {
         toast({ kind: 'error', message: `Stock insuficiente para ${product.name}` })
         return
       }
       addItem(product as any, weightKg)
+      scannedLabels.current.add(raw)   // register label as used in this order
       toast({ kind: 'ok', message: `${product.name} — ${weightKg.toFixed(3)} kg agregado` })
       setMobileTab('orden')
     } else if (product.unit === 'piece') {
-      // Non-weighted piece product — add 1 unit
       if (product.stockKg < 1) {
         toast({ kind: 'error', message: `Sin stock: ${product.name}` })
         return
@@ -66,7 +96,6 @@ export function POSLayout() {
       toast({ kind: 'ok', message: `${product.name} agregado` })
       setMobileTab('orden')
     } else {
-      // kg product without weight in barcode — open WeightInput panel
       selectProduct(product as any)
       setMobileTab('productos')
       toast({ kind: 'weight', message: `${product.name} — ingresa el peso` })

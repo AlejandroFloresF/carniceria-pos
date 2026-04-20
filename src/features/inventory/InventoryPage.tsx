@@ -79,6 +79,52 @@ export function InventoryPage() {
     }
   }
 
+  function exportTorrey() {
+    const products = allProducts.filter(p => p.isActive && (p as any).barcode)
+
+    if (!products.length) {
+      alert('No hay productos con código de barras asignado.')
+      return
+    }
+
+    // Torrey Manager format: UTF-16 LE, tab-separated, 14 columns
+    // Sample row: 22\tdescripcion\t123\t1\t244\t1\t123\t0.12\t0\t0\t0\t0\t0\t0
+    // Col:  1=?  2=Nombre  3=PLU  4=1  5=PLU  6=1  7=PLU  8=Precio  9-14=0
+    const tab = '\t'
+    const nl  = '\r\n'
+
+    // First config row (required by Torrey Manager — matches sample file line 1)
+    const header = ['1','1','1','1','1','1','0','0.0000','0','0','0','0','0','0'].join(tab)
+
+    const rows = products.map(p => {
+      const plu      = String((p as any).barcode)
+      const name     = p.name.slice(0, 20).toUpperCase()
+      // Torrey stores price ÷ 100 (e.g. $180.00 → 1.8)
+      const torPrice = (Number(p.pricePerUnit) / 100).toString()
+      // Col: 1=PLU  2=Nombre  3=PLU  4=1  5=PLU  6=1  7=PLU  8=Precio÷100  9-14=0
+      return [plu, name, plu, '1', plu, '1', plu, torPrice, '0', '0', '0', '0', '0', '0'].join(tab)
+    })
+
+    const content = header + nl + rows.join(nl) + nl
+
+    // Encode as UTF-16 LE with BOM (0xFF 0xFE)
+    const buf = new Uint8Array(2 + content.length * 2)
+    buf[0] = 0xFF; buf[1] = 0xFE
+    for (let i = 0; i < content.length; i++) {
+      const code = content.charCodeAt(i)
+      buf[2 + i * 2]     = code & 0xFF
+      buf[2 + i * 2 + 1] = (code >> 8) & 0xFF
+    }
+
+    const blob = new Blob([buf], { type: 'text/plain;charset=utf-16le' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = 'torrey_plu.txt'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function startEdit(p: typeof allProducts[0]) {
     setEditingProduct(p.id)
     const isKnown = DEFAULT_CATEGORIES.includes(p.category)
@@ -238,8 +284,17 @@ export function InventoryPage() {
       {tab === 'products' && (
         <div className="flex flex-col gap-5">
 
-          {/* Botón abrir modal */}
-          <div className="flex justify-end">
+          {/* Botones */}
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={exportTorrey}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors flex items-center gap-1.5"
+              title="Exportar PLUs para importar en Torrey Manager">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              Exportar Torrey
+            </button>
             <button
               onClick={() => { cancelEdit(); setShowProductModal(true) }}
               className="px-4 py-2 text-sm text-white rounded-lg font-medium transition-colors"
@@ -410,7 +465,7 @@ export function InventoryPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            const code = '2' + String(Date.now()).slice(-7) + String(Math.floor(Math.random() * 100)).padStart(2, '0')
+                            const code = String(Math.floor(10000 + Math.random() * 90000))
                             setProductForm(f => ({ ...f, barcode: code }))
                           }}
                           className="px-3 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-300 whitespace-nowrap transition-colors">
